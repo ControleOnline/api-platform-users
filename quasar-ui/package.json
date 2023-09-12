@@ -1,14 +1,16 @@
 {
-  "name": "@controleonline/quasar-products-ui",
-  "version": "1.0.21",
+  "name": "@controleonline/quasar-users-ui",
+  "version": "1.0.38",
   "author": "ControleOnline",
-  "description": "ControleOnline products Quasar UI Component",
+  "description": "ControleOnline users Quasar UI Component",
   "license": "MIT",
   "main": "src/index.js",
   "scripts": {},
   "repository": {
     "type": "git",
+
     "url": "https://github.com/controleonline/conline-quasar-ui"
+
   },
   "bugs": "",
   "homepage": "https://www.controleonline.com/devs/plugins",

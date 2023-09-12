@@ -1,16 +1,16 @@
-# products
+# users
 
 
-`composer require controleonline/products:dev-master`
+`composer require controleonline/users:dev-master`
 
 
 
 Create a new fila on controllers:
-config\routes\controllers\products.yaml
+config\routes\controllers\users.yaml
 
 ```
 controllers:
-    resource: ../../vendor/controleonline/products/src/Controller/
+    resource: ../../vendor/controleonline/users/src/Controller/
     type: annotation      
 ```
 
@@ -49,10 +49,10 @@ doctrine:
                 dir: "%kernel.project_dir%/src/Entity"
                 prefix: 'App\Entity'
                 alias: App
-            Products:
+            Users:
                 is_bundle: false
                 type: annotation
-                dir: "%kernel.project_dir%/vendor/controleonline/products/src/Entity"
+                dir: "%kernel.project_dir%/vendor/controleonline/users/src/Entity"
                 prefix: 'ControleOnline\Entity'
                 alias: App                             
 ```          
@@ -62,5 +62,5 @@ Add this line on your routes:
 config\packages\api_platform.yaml
 ```          
 mapping   :
-    paths: ['%kernel.project_dir%/src/Entity','%kernel.project_dir%/src/Resource',"%kernel.project_dir%/vendor/controleonline/products/src/Entity"]        
+    paths: ['%kernel.project_dir%/src/Entity','%kernel.project_dir%/src/Resource',"%kernel.project_dir%/vendor/controleonline/users/src/Entity"]        
 ```          

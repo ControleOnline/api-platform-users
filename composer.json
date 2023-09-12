@@ -1,5 +1,5 @@
 {
-    "name": "controleonline/user",
+    "name": "controleonline/users",
     "license": "MIT",
     "autoload": {
         "psr-4": {
