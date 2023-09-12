@@ -8,7 +8,7 @@
 Create a new fila on controllers:
 config\routes\controllers\users.yaml
 
-```
+```yaml
 controllers:
     resource: ../../vendor/controleonline/users/src/Controller/
     type: annotation      
@@ -16,7 +16,7 @@ controllers:
 
 Add to entities:
 nelsys-api\config\packages\doctrine.yaml
-```
+```yaml
 doctrine:
     dbal:
         # configure these for your database server
@@ -60,7 +60,7 @@ doctrine:
 
 Add this line on your routes:
 config\packages\api_platform.yaml
-```          
+```yaml
 mapping   :
     paths: ['%kernel.project_dir%/src/Entity','%kernel.project_dir%/src/Resource',"%kernel.project_dir%/vendor/controleonline/users/src/Entity"]        
 ```          
@@ -69,7 +69,7 @@ mapping   :
 Change your autentication file:
 config\packages\security.yaml
 
-```
+```yaml
 security:
     encoders:
         ControleOnline\Entity\User:
@@ -92,7 +92,7 @@ security:
                 password_path: password
             guard:
                 authenticators:
-                    - ControleOnline\Security\TokenAuthenticator
+                    - App\Security\TokenAuthenticator
     role_hierarchy:
         ROLE_SUPER : ROLE_ADMIN
         ROLE_ADMIN : ROLE_CLIENT
@@ -101,4 +101,19 @@ security:
     access_control:
         - { path: ^/my_contracts/signatures-finished, roles: IS_AUTHENTICATED_ANONYMOUSLY, requires_channel: https }
 
+```
+And create a file:
+App\Security\TokenAuthenticator
+
+```php
+<?php
+
+namespace App\Security;
+
+use ControleOnline\Security\TokenAuthenticator as SecurityTokenAuthenticator;
+
+class TokenAuthenticator extends SecurityTokenAuthenticator
+{
+    
+}
 ```
