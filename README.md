@@ -64,3 +64,41 @@ config\packages\api_platform.yaml
 mapping   :
     paths: ['%kernel.project_dir%/src/Entity','%kernel.project_dir%/src/Resource',"%kernel.project_dir%/vendor/controleonline/users/src/Entity"]        
 ```          
+
+
+Change your autentication file:
+config\packages\security.yaml
+
+```
+security:
+    encoders:
+        ControleOnline\Entity\User:
+            algorithm: auto
+    providers:
+        app_user_provider:
+            entity:
+                class: ControleOnline\Entity\User
+    firewalls:
+        dev:
+            pattern : ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+        main:
+            stateless : true
+            anonymous : lazy
+            provider  : app_user_provider
+            json_login:
+                check_path   : /token
+                username_path: username
+                password_path: password
+            guard:
+                authenticators:
+                    - ControleOnline\Security\TokenAuthenticator
+    role_hierarchy:
+        ROLE_SUPER : ROLE_ADMIN
+        ROLE_ADMIN : ROLE_CLIENT
+        ROLE_CLIENT: ROLE_USER
+
+    access_control:
+        - { path: ^/my_contracts/signatures-finished, roles: IS_AUTHENTICATED_ANONYMOUSLY, requires_channel: https }
+
+```
