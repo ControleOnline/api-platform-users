@@ -54,7 +54,7 @@ doctrine:
                 type: annotation
                 dir: "%kernel.project_dir%/vendor/controleonline/users/src/Entity"
                 prefix: 'ControleOnline\Entity'
-                alias: App                             
+                alias: ControleOnline                             
 ```          
 
 
