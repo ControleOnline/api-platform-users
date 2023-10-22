@@ -92,7 +92,7 @@ security:
                 password_path: password
             guard:
                 authenticators:
-                    - ControleOnline\Security\TokenAuthenticator
+                    - App\Security\TokenAuthenticator
     role_hierarchy:
         ROLE_SUPER : ROLE_ADMIN
         ROLE_ADMIN : ROLE_CLIENT
@@ -101,4 +101,20 @@ security:
     access_control:
         - { path: ^/my_contracts/signatures-finished, roles: IS_AUTHENTICATED_ANONYMOUSLY, requires_channel: https }
 
+```
+
+And create a file:
+App\Security\TokenAuthenticator
+
+```php
+<?php
+
+namespace App\Security;
+
+use ControleOnline\Security\TokenAuthenticator as SecurityTokenAuthenticator;
+
+class TokenAuthenticator extends SecurityTokenAuthenticator
+{
+    
+}
 ```
