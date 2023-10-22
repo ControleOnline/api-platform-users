@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
-use App\Entity\People;
+use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -18,8 +18,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
 /**
  * User
  *
- * @ORM\EntityListeners ({App\Listener\LogListener::class})
- * @ORM\Entity (repositoryClass="App\Repository\UserRepository")
+ * @ORM\EntityListeners ({ControleOnline\Listener\LogListener::class})
+ * @ORM\Entity (repositoryClass="ControleOnline\Repository\UserRepository")
  * @ORM\Table (name="users", uniqueConstraints={@ORM\UniqueConstraint (name="user_name", columns={"username"}), @ORM\UniqueConstraint(name="api_key", columns={"api_key"})}, indexes={@ORM\Index (name="people_id", columns={"people_id"})})
  * @ORM\HasLifecycleCallbacks
  */
@@ -65,9 +65,9 @@ class User implements UserInterface
      */
     private $apiKey;
     /**
-     * @var \App\Entity\People
+     * @var \ControleOnline\Entity\People
      *
-     * @ORM\ManyToOne(targetEntity="App\Entity\People", inversedBy="user")
+     * @ORM\ManyToOne(targetEntity="ControleOnline\Entity\People", inversedBy="user")
      * @ORM\JoinColumns({
      *   @ORM\JoinColumn(name="people_id", referencedColumnName="id", nullable=false)
      * })
