@@ -18,7 +18,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 /**
  * User
  *
- * @ORM\EntityListeners ({ControleOnline\Listener\LogListener::class})
+ * @ORM\EntityListeners ({App\Listener\LogListener::class})
  * @ORM\Entity (repositoryClass="ControleOnline\Repository\UserRepository")
  * @ORM\Table (name="users", uniqueConstraints={@ORM\UniqueConstraint (name="user_name", columns={"username"}), @ORM\UniqueConstraint(name="api_key", columns={"api_key"})}, indexes={@ORM\Index (name="people_id", columns={"people_id"})})
  * @ORM\HasLifecycleCallbacks
