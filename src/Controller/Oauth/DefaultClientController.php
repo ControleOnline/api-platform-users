@@ -1,6 +1,6 @@
 <?php
 
-namespace ControleOnline\Controller\Oauth;
+namespace App\Controller\Oauth;
 
 use App\Entity\Email;
 use App\Entity\Language;

@@ -1,6 +1,6 @@
 <?php
 
-namespace ControleOnline\Controller\Oauth;
+namespace App\Controller\Oauth;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
