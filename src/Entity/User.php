@@ -19,10 +19,42 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * User
  *
  * @ORM\EntityListeners ({App\Listener\LogListener::class})
+ * @ApiResource(
+ *     attributes={
+ *          "formats"={"jsonld", "json", "html", "jsonhal","form-data", "csv"={"text/csv"}},
+ *          "access_control"="is_granted('ROLE_CLIENT')"
+ *     }, 
+ *     normalizationContext  ={"groups"={"user_read" }},
+ *     denormalizationContext={"groups"={"user_write"}}, 
+ *     collectionOperations  ={ 
+ *          "oauth_google_connect" ={
+ *              "access_control"="is_granted('ROLE_CLIENT')",
+ *              "path"          ="/oauth/google/connect",
+ *              "method"        ="GET",
+ *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
+ *              "action"        ="connectAction"
+ *          }, 
+ *          "oauth_google_return_get" ={
+ *              "access_control"="is_granted('ROLE_CLIENT')",
+ *              "path"          ="/oauth/google/return",
+ *              "method"        ="GET",
+ *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
+ *              "action"        ="returnAction"
+ *          },  
+ *          "oauth_google_return_post" ={
+ *              "access_control"="is_granted('ROLE_CLIENT')",
+ *              "path"          ="/oauth/google/return",
+ *              "method"        ="POST",
+ *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
+ *              "action"        ="returnAction"
+ *          },   
+ *     }
+ * ) 
  * @ORM\Entity (repositoryClass="App\Repository\UserRepository")
  * @ORM\Table (name="users", uniqueConstraints={@ORM\UniqueConstraint (name="user_name", columns={"username"}), @ORM\UniqueConstraint(name="api_key", columns={"api_key"})}, indexes={@ORM\Index (name="people_id", columns={"people_id"})})
  * @ORM\HasLifecycleCallbacks
  */
+
 #[ApiResource(operations: [new Get(security: 'is_granted(\'ROLE_CLIENT\')'), new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], normalizationContext: ['groups' => ['user_read']], denormalizationContext: ['groups' => ['user_write']])]
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface
