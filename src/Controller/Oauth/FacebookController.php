@@ -8,16 +8,15 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 use League\OAuth2\Client\Provider\Facebook;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class FacebookController extends DefaultClientController
 {
 
 
 
-    public function __construct(EntityManagerInterface $entityManager, ContainerInterface $container)
+    public function __construct(EntityManagerInterface $entityManager)
     {
-        parent::__construct($entityManager, $container);
+        $this->manager = $entityManager;
         $this->clientId       = $_ENV['OAUTH_FACEBOOK_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_FACEBOOK_CLIENT_SECRET'];
 

@@ -12,7 +12,6 @@ use League\OAuth2\Client\Token\AccessToken;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
 class DefaultClientController extends AbstractController
@@ -26,13 +25,9 @@ class DefaultClientController extends AbstractController
      *
      * @var EntityManagerInterface
      */
-    protected $container;
     protected $manager = null;
-
-    public function __construct(EntityManagerInterface $entityManager, ContainerInterface $container)
+    public function __construct(EntityManagerInterface $entityManager)
     {
-
-        $this->container = $container;
         $this->manager = $entityManager;
     }
 
@@ -177,12 +172,5 @@ class DefaultClientController extends AbstractController
     {
         $company = $this->getCompany($user);
         return $company ? $company->getId() : null;
-    }
-
-    public static function getSubscribedServices()
-    {
-        return [
-            'doctrine.orm.default_entity_manager' => EntityManagerInterface::class,            
-        ];
     }
 }
