@@ -109,7 +109,7 @@ App\Security\TokenAuthenticator
 ```php
 <?php
 
-namespace App\Security;
+namespace ControleOnline\Security;
 
 use ControleOnline\Security\TokenAuthenticator as SecurityTokenAuthenticator;
 
