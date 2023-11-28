@@ -26,9 +26,10 @@ class GoogleConnectController extends DefaultClientController
             'redirectUri'  => 'https://' . $_SERVER['HTTP_HOST'] . '/oauth/google/return',
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Google Apps for Business accounts
         ]);
-        return  parent::connectAction();
     }
 
-
-    
+    public function __invoke()
+    {
+        return  parent::connectAction();
+    }
 }
