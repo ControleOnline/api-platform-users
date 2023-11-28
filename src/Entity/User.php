@@ -33,22 +33,18 @@ use Symfony\Component\Serializer\Annotation\Groups;
     new GetCollection(
         security: 'is_granted(\'ROLE_CLIENT\')',
         uriTemplate: '/oauth/google/connect',
-        controller: ControleOnline\Controller\Oauth\GoogleController::class,
-        action: "connectAction"
+        controller: ControleOnline\Controller\Oauth\GoogleConnectController::class,        
 
     ),
     new GetCollection(
         security: 'is_granted(\'ROLE_CLIENT\')',
         uriTemplate: '/oauth/google/return',
-        controller: ControleOnline\Controller\Oauth\GoogleController::class,
-        action: "returnAction"
+        controller: ControleOnline\Controller\Oauth\GoogleReturnController::class,        
     ),
     new Post(
         uriTemplate: '/oauth/google/return',
-        controller: ControleOnline\Controller\Oauth\GoogleController::class,
-        securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
-        action: "returnAction"
-
+        controller: ControleOnline\Controller\Oauth\GoogleReturnController::class,
+        securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',        
     ),
     new Get(security: 'is_granted(\'ROLE_CLIENT\')'), new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
 ], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], normalizationContext: ['groups' => ['user_read']], denormalizationContext: ['groups' => ['user_write']])]

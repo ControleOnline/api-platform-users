@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 use League\OAuth2\Client\Provider\Google;
 
-class GoogleController extends DefaultClientController
+class GoogleConnectController extends DefaultClientController
 {
 
 
@@ -26,25 +26,9 @@ class GoogleController extends DefaultClientController
             'redirectUri'  => 'https://' . $_SERVER['HTTP_HOST'] . '/oauth/google/return',
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Google Apps for Business accounts
         ]);
-    }
-
-    /**
-     * Link to this controller to start the "connect" process
-     *
-     * @Route("/oauth/google/connect", name="connect_google_start")
-     */
-    public function connectAction()
-    {
         return  parent::connectAction();
     }
 
-    /**
-     * Link to this controller to start the "connect" process
-     *
-     * @Route("/oauth/google/return", name="connect_google_return" , methods={"GET", "POST"})
-     */
-    public function returnAction(Request $request): JsonResponse
-    {
-        return parent::returnAction($request);
-    }
+
+    
 }
