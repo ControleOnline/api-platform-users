@@ -28,12 +28,12 @@ class DefaultClientController extends AbstractController
      */
     protected $container;
     protected $manager = null;
-    
+
     public function __construct(EntityManagerInterface $entityManager, ContainerInterface $container)
     {
 
         $this->container = $container;
-        $this->manager = $entityManager;        
+        $this->manager = $entityManager;
     }
 
     protected function connectAction()
@@ -177,5 +177,12 @@ class DefaultClientController extends AbstractController
     {
         $company = $this->getCompany($user);
         return $company ? $company->getId() : null;
+    }
+
+    public static function getSubscribedServices()
+    {
+        return [
+            'doctrine.orm.default_entity_manager' => EntityManagerInterface::class,            
+        ];
     }
 }
