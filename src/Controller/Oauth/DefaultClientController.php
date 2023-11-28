@@ -26,7 +26,10 @@ class DefaultClientController extends AbstractController
      * @var EntityManagerInterface
      */
     protected $manager = null;
-
+    public function __construct(EntityManagerInterface $entityManager)
+    {
+        $this->manager = $entityManager;
+    }
 
     protected function connectAction()
     {
