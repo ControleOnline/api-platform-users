@@ -26,42 +26,32 @@ use Symfony\Component\Serializer\Annotation\Groups;
  */
 
 
-#[ApiResource(
-    collectionOperations: [
-        'get' => [
-            'security' => 'is_granted(\'ROLE_CLIENT\')',
-        ],
-        'oauth_google_connect' => [
-            'method' => 'GET',
-            'security' => 'is_granted(\'ROLE_CLIENT\')',
-            'path' => '/oauth/google/connect',
-            'controller' => \ControleOnline\Controller\Oauth\GoogleController::class,
-            'action' => 'connectAction',
-        ],
-        'oauth_google_return_get' => [
-            'method' => 'GET',
-            'security' => 'is_granted(\'ROLE_CLIENT\')',
-            'path' => '/oauth/google/return',
-            'controller' => \ControleOnline\Controller\Oauth\GoogleController::class,
-            'action' => 'returnAction',
-        ],
-        'oauth_google_return_post' => [
-            'method' => 'POST',
-            'security' => 'is_granted(\'ROLE_CLIENT\')',
-            'path' => '/oauth/google/return',
-            'controller' => \ControleOnline\Controller\Oauth\GoogleController::class,
-            'action' => 'returnAction',
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'security' => 'is_granted(\'ROLE_CLIENT\')',
-        ],
-    ],
-    formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
-    normalizationContext: ['groups' => ['user_read']],
-    denormalizationContext: ['groups' => ['user_write']]
-)]
+
+#[ApiResource(operations: [
+
+
+    new GetCollection(
+        security: 'is_granted(\'ROLE_CLIENT\')',
+        uriTemplate: '/oauth/google/connect',
+        controller: ControleOnline\Controller\Oauth\GoogleController::class,
+        action: "connectAction"
+
+    ),
+    new GetCollection(
+        security: 'is_granted(\'ROLE_CLIENT\')',
+        uriTemplate: '/oauth/google/return',
+        controller: ControleOnline\Controller\Oauth\GoogleController::class,
+        action: "returnAction"
+    ),
+    new Post(
+        uriTemplate: '/oauth/google/return',
+        controller: ControleOnline\Controller\Oauth\GoogleController::class,
+        securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        action: "returnAction"
+
+    ),
+    new Get(security: 'is_granted(\'ROLE_CLIENT\')'), new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], normalizationContext: ['groups' => ['user_read']], denormalizationContext: ['groups' => ['user_write']])]
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface
 {
