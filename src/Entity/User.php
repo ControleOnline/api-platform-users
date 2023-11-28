@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\Post;
 use App\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -18,49 +19,49 @@ use Symfony\Component\Serializer\Annotation\Groups;
 /**
  * User
  *
- * @ORM\EntityListeners ({App\Listener\LogListener::class})
- * @ApiResource(
- *     attributes={
- *          "formats"={"jsonld", "json", "html", "jsonhal","form-data", "csv"={"text/csv"}},
- *          "access_control"="is_granted('ROLE_CLIENT')"
- *     }, 
- *     normalizationContext  ={"groups"={"user_read" }},
- *     denormalizationContext={"groups"={"user_write"}}, 
- *     collectionOperations  ={ 
- *          "get" ={"access_control"="is_granted('ROLE_CLIENT')"},  
- *          "oauth_google_connect" ={
- *              "access_control"="is_granted('ROLE_CLIENT')",
- *              "path"          ="/oauth/google/connect",
- *              "method"        ="GET",
- *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
- *              "action"        ="connectAction"
- *          }, 
- *          "oauth_google_return_get" ={
- *              "access_control"="is_granted('ROLE_CLIENT')",
- *              "path"          ="/oauth/google/return",
- *              "method"        ="GET",
- *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
- *              "action"        ="returnAction"
- *          },  
- *          "oauth_google_return_post" ={
- *              "access_control"="is_granted('ROLE_CLIENT')",
- *              "path"          ="/oauth/google/return",
- *              "method"        ="POST",
- *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
- *              "action"        ="returnAction"
- *          },   
- *     },
- *     itemOperations        ={
- *         "get"         ={
- *           "access_control"="is_granted('ROLE_CLIENT')"
- *         },  
- *      } 
- * ) 
- * @ORM\Entity (repositoryClass="App\Repository\UserRepository")
+ * @ORM\EntityListeners ({ControleOnline\Listener\LogListener::class})  
+ * @ORM\Entity (repositoryClass="ControleOnline\Repository\UserRepository")
  * @ORM\Table (name="users", uniqueConstraints={@ORM\UniqueConstraint (name="user_name", columns={"username"}), @ORM\UniqueConstraint(name="api_key", columns={"api_key"})}, indexes={@ORM\Index (name="people_id", columns={"people_id"})})
  * @ORM\HasLifecycleCallbacks
  */
 
+
+#[ApiResource(
+    collectionOperations: [
+        'get' => [
+            'security' => 'is_granted(\'ROLE_CLIENT\')',
+        ],
+        'oauth_google_connect' => [
+            'method' => 'GET',
+            'security' => 'is_granted(\'ROLE_CLIENT\')',
+            'path' => '/oauth/google/connect',
+            'controller' => \ControleOnline\Controller\Oauth\GoogleController::class,
+            'action' => 'connectAction',
+        ],
+        'oauth_google_return_get' => [
+            'method' => 'GET',
+            'security' => 'is_granted(\'ROLE_CLIENT\')',
+            'path' => '/oauth/google/return',
+            'controller' => \ControleOnline\Controller\Oauth\GoogleController::class,
+            'action' => 'returnAction',
+        ],
+        'oauth_google_return_post' => [
+            'method' => 'POST',
+            'security' => 'is_granted(\'ROLE_CLIENT\')',
+            'path' => '/oauth/google/return',
+            'controller' => \ControleOnline\Controller\Oauth\GoogleController::class,
+            'action' => 'returnAction',
+        ],
+    ],
+    itemOperations: [
+        'get' => [
+            'security' => 'is_granted(\'ROLE_CLIENT\')',
+        ],
+    ],
+    formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
+    normalizationContext: ['groups' => ['user_read']],
+    denormalizationContext: ['groups' => ['user_write']]
+)]
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface
 {
