@@ -8,15 +8,16 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 use League\OAuth2\Client\Provider\Instagram;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class InstagramController extends DefaultClientController
 {
 
 
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, ContainerInterface $container)
     {
-        $this->manager = $entityManager;
+        parent::__construct($entityManager, $container);
         $this->clientId       = $_ENV['OAUTH_INSTAGRAM_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_INSTAGRAM_CLIENT_SECRET'];
 

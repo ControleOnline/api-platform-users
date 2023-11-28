@@ -8,15 +8,17 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 use League\OAuth2\Client\Provider\Google;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class GoogleController extends DefaultClientController
 {
 
 
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, ContainerInterface $container)
     {
-        $this->manager = $entityManager;
+        parent::__construct($entityManager, $container);
+
         $this->clientId       = $_ENV['OAUTH_GOOGLE_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_GOOGLE_CLIENT_SECRET'];
 

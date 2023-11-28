@@ -12,6 +12,7 @@ use League\OAuth2\Client\Token\AccessToken;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
 class DefaultClientController extends AbstractController
@@ -25,10 +26,14 @@ class DefaultClientController extends AbstractController
      *
      * @var EntityManagerInterface
      */
+    protected $container;
     protected $manager = null;
-    public function __construct(EntityManagerInterface $entityManager)
+    
+    public function __construct(EntityManagerInterface $entityManager, ContainerInterface $container)
     {
-        $this->manager = $entityManager;
+
+        $this->container = $container;
+        $this->manager = $entityManager;        
     }
 
     protected function connectAction()
