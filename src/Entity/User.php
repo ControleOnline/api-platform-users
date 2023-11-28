@@ -49,7 +49,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
  *              "controller"    =ControleOnline\Controller\Oauth\GoogleController::class, 
  *              "action"        ="returnAction"
  *          },   
- *     }
+ *     },
  *     itemOperations        ={
  *         "get"         ={
  *           "access_control"="is_granted('ROLE_CLIENT')"
