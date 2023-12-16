@@ -2,9 +2,9 @@
 
 namespace ControleOnline\Controller\Oauth;
 
-use App\Entity\Email;
-use App\Entity\Language;
-use App\Entity\People;
+use ControleOnline\Entity\Email;
+use ControleOnline\Entity\Language;
+use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;

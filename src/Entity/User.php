@@ -9,7 +9,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
-use App\Entity\People;
+use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -89,9 +89,9 @@ class User implements UserInterface
      */
     private $apiKey;
     /**
-     * @var \App\Entity\People
+     * @var \ControleOnline\Entity\People
      *
-     * @ORM\ManyToOne(targetEntity="App\Entity\People", inversedBy="user")
+     * @ORM\ManyToOne(targetEntity="ControleOnline\Entity\People", inversedBy="user")
      * @ORM\JoinColumns({
      *   @ORM\JoinColumn(name="people_id", referencedColumnName="id", nullable=false)
      * })
