@@ -9,6 +9,9 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
+use ControleOnline\Controller\Oauth\GoogleConnectController;
+use ControleOnline\Controller\Oauth\GoogleReturnController;
+use ControleOnline\Controller\Oauth\MercadolivreReturnController;
 use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -27,27 +30,35 @@ use Symfony\Component\Serializer\Annotation\Groups;
 
 
 
-#[ApiResource(operations: [
-
-
-    new GetCollection(
-        security: 'is_granted(\'ROLE_CLIENT\')',
-        uriTemplate: '/oauth/google/connect',
-        controller: ControleOnline\Controller\Oauth\GoogleConnectController::class,        
-
-    ),
-    new GetCollection(
-        security: 'is_granted(\'ROLE_CLIENT\')',
-        uriTemplate: '/oauth/google/return',
-        controller: ControleOnline\Controller\Oauth\GoogleReturnController::class,        
-    ),
-    new Post(
-        uriTemplate: '/oauth/google/return',
-        controller: ControleOnline\Controller\Oauth\GoogleReturnController::class,
-        securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',        
-    ),
-    new Get(security: 'is_granted(\'ROLE_CLIENT\')'), new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
-], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], normalizationContext: ['groups' => ['user_read']], denormalizationContext: ['groups' => ['user_write']])]
+#[ApiResource(
+    operations: [
+        new GetCollection(
+            security: 'is_granted(\'ROLE_CLIENT\')',
+            uriTemplate: '/oauth/google/connect',
+            controller: GoogleConnectController::class,
+        ),
+        new GetCollection(
+            security: 'is_granted(\'ROLE_CLIENT\')',
+            uriTemplate: '/oauth/google/return',
+            controller: GoogleReturnController::class,
+        ),
+        new GetCollection(
+            security: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            uriTemplate: '/oauth/mercadolivre/return',
+            controller: MercadolivreReturnController::class,
+        ),
+        new Post(
+            uriTemplate: '/oauth/google/return',
+            controller: GoogleReturnController::class,
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
+        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+    ],
+    formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
+    normalizationContext: ['groups' => ['user_read']],
+    denormalizationContext: ['groups' => ['user_write']]
+)]
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface
 {
