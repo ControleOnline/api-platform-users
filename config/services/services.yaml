@@ -8,3 +8,23 @@ services:
         arguments:
             $registry: "@doctrine"
             $encoder:  "@security.password_encoder"
+    ControleOnline\Controller\Oauth\MercadolivreReturnController:
+        tags: ['controller.service_arguments']
+        arguments:
+            $entityManager: "@doctrine.orm.default_entity_manager"            
+    ControleOnline\Controller\Oauth\FacebookController:
+        tags: ['controller.service_arguments']
+        arguments:
+            $entityManager: "@doctrine.orm.default_entity_manager"    
+    ControleOnline\Controller\Oauth\GoogleConnectController:
+        tags: ['controller.service_arguments']
+        arguments:
+            $entityManager: "@doctrine.orm.default_entity_manager"      
+    ControleOnline\Controller\Oauth\GoogleReturnController:
+        tags: ['controller.service_arguments']
+        arguments:
+            $entityManager: "@doctrine.orm.default_entity_manager"
+    ControleOnline\Controller\Oauth\InstagramController:
+        tags: ['controller.service_arguments']
+        arguments:
+            $entityManager: "@doctrine.orm.default_entity_manager"          
