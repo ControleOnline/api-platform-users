@@ -10,7 +10,7 @@ config\services.yaml
 
 ```yaml
 imports:
-    - { resource: "../vendor/controleonline/orders/tasks/services/tasks.yaml" }    
+    - { resource: "../vendor/controleonline/orders/tasks/services/services.yaml" }    
 ```
 
 Change your autentication file:
