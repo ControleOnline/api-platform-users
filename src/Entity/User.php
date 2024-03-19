@@ -53,11 +53,6 @@ use Symfony\Component\Serializer\Annotation\Groups;
             controller: GoogleReturnController::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
-        new Post(
-            uriTemplate : '/people/{id}/add-user',
-            controller: CreateUserAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
-        ),
         new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
     ],
