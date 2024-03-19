@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
+use App\Controller\CreateUserAction;
 use ControleOnline\Controller\Oauth\GoogleConnectController;
 use ControleOnline\Controller\Oauth\GoogleReturnController;
 use ControleOnline\Controller\Oauth\MercadolivreReturnController;
@@ -50,6 +51,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/oauth/google/return',
             controller: GoogleReturnController::class,
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            uriTemplate : '/people/{id}/add-user',
+            controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
