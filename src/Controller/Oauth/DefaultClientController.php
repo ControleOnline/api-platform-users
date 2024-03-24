@@ -162,10 +162,10 @@ class DefaultClientController extends AbstractController
 
     private function getCompany(User $user)
     {
-        $peopleEmployee = $user->getPeople()->getPeopleCompany()->first();
+        $peopleLink = $user->getPeople()->getLink()->first();
 
-        if ($peopleEmployee !== false && $peopleEmployee->getCompany() instanceof People)
-            return $peopleEmployee->getCompany();
+        if ($peopleLink !== false && $peopleLink->getCompany() instanceof People)
+            return $peopleLink->getCompany();
     }
 
     private function getCompanyId(User $user)
