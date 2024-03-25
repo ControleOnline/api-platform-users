@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace ControleOnline\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Doctrine\ORM\EntityManagerInterface;
