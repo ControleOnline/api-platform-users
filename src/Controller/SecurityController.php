@@ -20,10 +20,7 @@ class SecurityController extends AbstractController
   ) {
   }
 
-  /**
-   * @Route("/token", name="auth_token", methods={"POST"})
-   */
-  public function token(Request $request)
+  public function __invoke(Request $request)
   {
     /**
      * @var \ControleOnline\Entity\User

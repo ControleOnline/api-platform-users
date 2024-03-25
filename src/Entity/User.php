@@ -13,6 +13,7 @@ use App\Controller\CreateUserAction;
 use ControleOnline\Controller\Oauth\GoogleConnectController;
 use ControleOnline\Controller\Oauth\GoogleReturnController;
 use ControleOnline\Controller\Oauth\MercadolivreReturnController;
+use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -52,6 +53,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
             uriTemplate: '/oauth/google/return',
             controller: GoogleReturnController::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            uriTemplate: '/token',
+            controller: SecurityController::class,
+            securityPostDenormalize: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
         ),
         new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
