@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use ControleOnline\Entity\User;
 use ControleOnline\Entity\People;
-use App\Service\PeopleRoleService;
+use ControleOnline\Service\PeopleRoleService;
 
 class SecurityController extends AbstractController
 {
@@ -16,7 +16,7 @@ class SecurityController extends AbstractController
 
   public function __construct(
     private PeopleRoleService $roleService,
-    private  EntityManagerInterface $manager,
+    private EntityManagerInterface $manager,
   ) {
   }
 
