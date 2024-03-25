@@ -81,7 +81,7 @@ class SecurityController extends AbstractController
 
   private function getCompany(User $user): ?People
   {
-    $peopleLink = $this->manager->getRepository(People::class)->getPeopleLink($user->getPeople(), 'employee', 1);
+    $peopleLink = $this->manager->getRepository(People::class)->getPeopleLinks($user->getPeople(), 'employee', 1);
     if ($peopleLink !== false && $peopleLink->getCompany() instanceof People)
       return $peopleLink->getCompany();
   }
