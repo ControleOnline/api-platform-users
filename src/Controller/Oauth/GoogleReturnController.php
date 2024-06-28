@@ -2,6 +2,7 @@
 
 namespace ControleOnline\Controller\Oauth;
 
+use ControleOnline\Service\DomainService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,7 +15,9 @@ class GoogleReturnController extends DefaultClientController
 
 
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager,
+    
+    private DomainService $domainService)
     {
         $this->manager = $entityManager;
         $this->clientId       = $_ENV['OAUTH_GOOGLE_CLIENT_ID'];
@@ -23,7 +26,7 @@ class GoogleReturnController extends DefaultClientController
         $this->provider = new Google([
             'clientId'     => $this->clientId,
             'clientSecret' => $this->clientSecret,
-            'redirectUri'  => 'https://' . $_SERVER['HTTP_HOST'] . '/oauth/google/return',
+            'redirectUri'  => 'https://' . $this->domainService->getMainDomain(). '/oauth/google/return',
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Google Apps for Business accounts
         ]);
         

@@ -2,6 +2,7 @@
 
 namespace ControleOnline\Controller\Oauth;
 
+use ControleOnline\Service\DomainService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,7 +15,10 @@ class InstagramController extends DefaultClientController
 
 
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager,
+    
+    private DomainService $domainService
+    )
     {
         $this->manager = $entityManager;
         $this->clientId       = $_ENV['OAUTH_INSTAGRAM_CLIENT_ID'];
@@ -23,7 +27,7 @@ class InstagramController extends DefaultClientController
         $this->provider = new Instagram([
             'clientId'     => $this->clientId,
             'clientSecret' => $this->clientSecret,
-            'redirectUri'  => 'https://' . $_SERVER['HTTP_HOST'] . '/oauth/instagram/return',
+            'redirectUri'  => 'https://' .$this->domainService->getMainDomain() . '/oauth/instagram/return',
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Instagram Apps for Business accounts
         ]);
     }
