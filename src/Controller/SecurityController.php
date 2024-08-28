@@ -55,7 +55,7 @@ class SecurityController extends AbstractController
       'people'   => $user->getPeople()->getId(),
       'mycompany'  => $this->getCompanyId($user),
       'realname' => $this->getUserRealName($user->getPeople()),
-      'avatar'   => $user->getPeople()->getFile() ? '/files/download/' . $user->getPeople()->getFile()->getId() : null,
+      'avatar'   => $user->getPeople()->getImage() ? '/files/download/' . $user->getPeople()->getImage()->getId() : null,
       'email'    => $email,
       'phone'    => sprintf('%s%s', $code, $number),
       'active'   => (int) $user->getPeople()->getEnabled(),
