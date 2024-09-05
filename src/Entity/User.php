@@ -9,7 +9,9 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
-use App\Controller\CreateUserAction;
+use ApiPlatform\Metadata\Put;
+use ControleOnline\Controller\ChangePasswordAction;
+use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\Oauth\GoogleConnectController;
 use ControleOnline\Controller\Oauth\GoogleReturnController;
 use ControleOnline\Controller\Oauth\MercadolivreReturnController;
@@ -53,6 +55,14 @@ use Symfony\Component\Serializer\Annotation\Groups;
             uriTemplate: '/oauth/google/return',
             controller: GoogleReturnController::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            controller: CreateUserAction::class,
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Put(
+            uriTemplate: '/users/{id}/change-password',
+            controller: ChangePasswordAction::class
         ),
         new Post(
             uriTemplate: '/token',
@@ -117,7 +127,7 @@ class User implements UserInterface
     private $people;
     public function __construct()
     {
-        $this->apiKey = md5(microtime());
+        $this->apiKey = md5($this->getUsername() . microtime());
     }
     public function getId(): ?int
     {
