@@ -2,6 +2,7 @@
 
 namespace ControleOnline\Controller;
 
+use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use ControleOnline\Service\HydratorService;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,13 +24,20 @@ class CreateUserAction
 
     try {
       $payload   = json_decode($request->getContent());
-      return new JsonResponse($this->hydratorService->result(
-        $this->service->createUser(
-          $payload->people,
-          $payload->username,
-          $payload->password
+
+      $user = $this->service->createUser(
+        $payload->people,
+        $payload->username,
+        $payload->password
+      );
+
+      return new JsonResponse(
+        $this->hydratorService->item(
+          User::class,
+          $user->getId(),
+          "user_read"
         )
-      ));
+      );
     } catch (\Exception $e) {
 
       return new JsonResponse([

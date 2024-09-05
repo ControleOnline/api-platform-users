@@ -24,7 +24,16 @@ class ChangePasswordAction
 
     try {
       $payload   = json_decode($request->getContent());
-      return new JsonResponse($this->hydratorService->result($this->service->changePassword($data, $payload->password)));
+
+      $user = $this->service->changePassword($data, $payload->password);
+
+      return new JsonResponse(
+        $this->hydratorService->item(
+          User::class,
+          $user->getId(),
+          "user_read"
+        )
+      );
     } catch (\Exception $e) {
 
       return new JsonResponse([

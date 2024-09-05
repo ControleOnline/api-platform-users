@@ -83,6 +83,7 @@ class User implements UserInterface
      * @ORM\Id()
      * @ORM\GeneratedValue(strategy="IDENTITY")
      * @ORM\Column(type="integer")
+     * @Groups({"people_read", "user_read"})
      */
     private $id;
     /**
@@ -123,6 +124,7 @@ class User implements UserInterface
      * @ORM\JoinColumns({
      *   @ORM\JoinColumn(name="people_id", referencedColumnName="id", nullable=false)
      * })
+     * @Groups({"people_read", "user_read"})
      */
     private $people;
     public function __construct()
