@@ -6,7 +6,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use ControleOnline\Service\HydratorService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use ControleOnline\Entity\UserService;
+use ControleOnline\Service\UserService;
 
 class CreateUserAction
 {
