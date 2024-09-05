@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace ControleOnline\Service;
 
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,7 +28,7 @@ class UserService
   {
     if (!$this->getPermission())
       throw new Exception("You should not pass!!!", 301);
-    
+
     $user = new User();
     $user->setPeople($this->manager->getRepository(User::class)->find($people_id));
     $user->setHash($this->encoder->encodePassword($user, $password));
