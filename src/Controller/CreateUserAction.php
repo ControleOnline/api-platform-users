@@ -2,6 +2,7 @@
 
 namespace ControleOnline\Controller;
 
+use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use ControleOnline\Service\HydratorService;
@@ -24,9 +25,10 @@ class CreateUserAction
 
     try {
       $payload   = json_decode($request->getContent());
+      $people =  $this->manager->getRepository(People::class)->find($payload->people);
 
       $user = $this->service->createUser(
-        $payload->people,
+        $people,
         $payload->username,
         $payload->password
       );
