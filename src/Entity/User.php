@@ -57,6 +57,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Post(
+            uriTemplate: '/users',
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
