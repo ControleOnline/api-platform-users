@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
+use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\Oauth\GoogleConnectController;
@@ -64,6 +65,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ),
         new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
 
+        new Put(
+            uriTemplate: '/users/{id}/change-api-key',
+            controller: ChangeApiKeyAction::class,
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
@@ -134,7 +140,7 @@ class User implements UserInterface
     private $people;
     public function __construct()
     {
-        $this->apiKey = md5($this->getUsername() . microtime());
+        $this->generateApiKey();
     }
     public function getId(): ?int
     {
@@ -194,6 +200,13 @@ class User implements UserInterface
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
     }
+
+    public function generateApiKey(): string
+    {
+        $this->apiKey = md5($this->getUsername() . microtime());
+        return $this->apiKey;
+    }
+
     public function getApiKey(): string
     {
         return $this->apiKey;

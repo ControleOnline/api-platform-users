@@ -25,6 +25,18 @@ class UserService
     return $user;
   }
 
+  public function changeApiKey(User $user)
+  {
+    if (!$this->getPermission())
+      throw new Exception("You should not pass!!!", 301);
+
+    $user->generateApiKey();
+
+    $this->manager->persist($user);
+    $this->manager->flush();
+    return $user;
+  }
+
   public function createUser(People $people, $username, $password)
   {
     if (!$this->getPermission())
