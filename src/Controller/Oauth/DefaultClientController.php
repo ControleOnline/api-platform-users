@@ -109,7 +109,7 @@ class DefaultClientController extends AbstractController
             'people'    => $user->getPeople()->getId(),
             'mycompany' => $this->getCompanyId($user),
             'realname'  => $ownerDetails->getFirstName(),
-            'avatar'    => $user->getPeople()->getImage() ? '/files/download/' . $user->getPeople()->getImage()->getId() : null,
+            'avatar'    => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . 'download' : null,
             'email'     => $ownerDetails->getEmail(),
             'active'    => (int) $user->getPeople()->getEnabled(),
         ];
