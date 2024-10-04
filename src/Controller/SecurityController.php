@@ -16,8 +16,7 @@ class SecurityController extends AbstractController
   public function __construct(
     private PeopleRoleService $roleService,
     private EntityManagerInterface $manager,
-  ) {
-  }
+  ) {}
 
   public function __invoke(Request $request)
   {
@@ -54,7 +53,7 @@ class SecurityController extends AbstractController
       'people'   => $user->getPeople()->getId(),
       'mycompany'  => $this->getCompanyId($user),
       'realname' => $this->getUserRealName($user->getPeople()),
-      'avatar'   => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId().'download' : null,
+      'avatar'   => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
       'email'    => $email,
       'phone'    => sprintf('%s%s', $code, $number),
       'active'   => (int) $user->getPeople()->getEnabled(),
