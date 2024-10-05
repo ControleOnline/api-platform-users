@@ -31,7 +31,7 @@ class ChangePasswordAction
         $this->hydratorService->item(
           User::class,
           $user->getId(),
-          "user_read"
+          "user:read"
         )
       );
     } catch (\Exception $e) {

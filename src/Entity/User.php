@@ -84,8 +84,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
-    normalizationContext: ['groups' => ['user_read']],
-    denormalizationContext: ['groups' => ['user_write']]
+    normalizationContext: ['groups' => ['user:read']],
+    denormalizationContext: ['groups' => ['user:write']]
 )]
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface
@@ -94,13 +94,13 @@ class User implements UserInterface
      * @ORM\Id()
      * @ORM\GeneratedValue(strategy="IDENTITY")
      * @ORM\Column(type="integer")
-     * @Groups({"people_read", "user_read"})
+     * @Groups({"people:read", "user:read"})
      */
     private $id;
     /**
      *
      * @ORM\Column(type="string", length=50, nullable=false)
-     * @Groups({"people_read", "user_read"})
+     * @Groups({"people:read", "user:read"})
      */
     private $username;
     /**
@@ -125,7 +125,7 @@ class User implements UserInterface
     private $lostPassword;
     /**
      * @ORM\Column(type="string", length=60, nullable=false)
-     * @Groups({"people_read", "user_read"})
+     * @Groups({"people:read", "user:read"})
      */
     private $apiKey;
     /**
@@ -135,7 +135,7 @@ class User implements UserInterface
      * @ORM\JoinColumns({
      *   @ORM\JoinColumn(name="people_id", referencedColumnName="id", nullable=false)
      * })
-     * @Groups({"people_read", "user_read"})
+     * @Groups({"people:read", "user:read"})
      */
     private $people;
     public function __construct()
