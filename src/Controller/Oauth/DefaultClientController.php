@@ -17,15 +17,16 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class DefaultClientController extends AbstractController
 {
 
-    protected  $clientId;
-    protected $clientSecret;
-    protected $provider;
-    /** //
+    /** 
      * Entity Manager
      *
      * @var EntityManagerInterface
      */
     protected $manager = null;
+    protected $clientId;
+    protected $clientSecret;
+    protected $provider;
+
     public function __construct(EntityManagerInterface $entityManager)
     {
         $this->manager = $entityManager;
@@ -37,7 +38,6 @@ class DefaultClientController extends AbstractController
         header('Location: ' . $authUrl);
         exit;
     }
-
 
     protected function discoveryPeople($ownerDetails)
     {
@@ -87,6 +87,7 @@ class DefaultClientController extends AbstractController
 
         return $user;
     }
+
     protected function discoveryUser($token)
     {
         $ownerDetails = $this->provider->getResourceOwner($token);
@@ -95,12 +96,9 @@ class DefaultClientController extends AbstractController
             ->findOneBy([
                 'username'       => $ownerDetails->getEmail(),
             ]);
+
         if (!$user)
-
-
             $user = $this->createUser($ownerDetails);
-
-
 
         $data = [
             'username'  => $user->getUsername(),
