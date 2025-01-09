@@ -39,24 +39,9 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     operations: [
         new GetCollection(
-            security: 'is_granted(\'ROLE_CLIENT\')',
-            uriTemplate: '/oauth/google/connect',
-            controller: GoogleConnectController::class,
-        ),
-        new GetCollection(
-            security: 'is_granted(\'ROLE_CLIENT\')',
-            uriTemplate: '/oauth/google/return',
-            controller: GoogleReturnController::class,
-        ),
-        new GetCollection(
             security: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
             uriTemplate: '/oauth/mercadolivre/return',
             controller: MercadolivreReturnController::class,
-        ),
-        new Post(
-            uriTemplate: '/oauth/google/return',
-            controller: GoogleReturnController::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Post(
             uriTemplate: '/users',

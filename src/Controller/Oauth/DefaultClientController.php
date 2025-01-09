@@ -60,10 +60,10 @@ class DefaultClientController extends AbstractController
             $people->setAlias($ownerDetails->getFirstName());
             $people->setName($ownerDetails->getLastName());
             $people->setLanguage($lang);
-            $people->setBilling(0);
-            $people->setBillingDays('daily');
-            $people->setPaymentTerm(1);
-            $people->setIcms(0);
+            //$people->setBilling(0);
+            //$people->setBillingDays('daily');
+            //$people->setPaymentTerm(1);
+            //$people->setIcms(0);
             $email->setPeople($people);
             $this->manager->persist($email);
         }

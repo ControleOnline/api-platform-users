@@ -15,10 +15,11 @@ class GoogleConnectController extends DefaultClientController
 
 
 
-    public function __construct(EntityManagerInterface $entityManager,
-    
-    private DomainService $domainService)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager,
+
+        private DomainService $domainService
+    ) {
         $this->manager = $entityManager;
         $this->clientId       = $_ENV['OAUTH_GOOGLE_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_GOOGLE_CLIENT_SECRET'];
@@ -30,7 +31,9 @@ class GoogleConnectController extends DefaultClientController
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Google Apps for Business accounts
         ]);
     }
-
+    /**
+     * @Route("/oauth/google/connect", name="google_connect", methods={"GET"})
+     */
     public function __invoke()
     {
         return  parent::connectAction();

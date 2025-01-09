@@ -15,10 +15,10 @@ class GoogleReturnController extends DefaultClientController
 
 
 
-    public function __construct(EntityManagerInterface $entityManager,
-    
-    private DomainService $domainService)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        private DomainService $domainService
+    ) {
         $this->manager = $entityManager;
         $this->clientId       = $_ENV['OAUTH_GOOGLE_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_GOOGLE_CLIENT_SECRET'];
@@ -26,12 +26,13 @@ class GoogleReturnController extends DefaultClientController
         $this->provider = new Google([
             'clientId'     => $this->clientId,
             'clientSecret' => $this->clientSecret,
-            'redirectUri'  => 'https://' . $this->domainService->getMainDomain(). '/oauth/google/return',
+            'redirectUri'  => 'https://' . $this->domainService->getMainDomain() . '/oauth/google/return',
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Google Apps for Business accounts
         ]);
-        
     }
-
+    /**
+     * @Route("/oauth/google/return", name="google_return", methods={"GET","POST"})
+     */
     public function __invoke(Request $request): JsonResponse
     {
         return parent::returnAction($request);
