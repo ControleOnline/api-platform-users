@@ -101,6 +101,7 @@ class DefaultClientController extends AbstractController
             $user = $this->createUser($ownerDetails);
 
         $data = [
+            'id'        => $user->getPeople()->getId(),
             'username'  => $user->getUsername(),
             'roles'     => $user->getRoles(),
             'api_key'   => $user->getApiKey(),
