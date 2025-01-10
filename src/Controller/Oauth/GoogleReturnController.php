@@ -3,6 +3,7 @@
 namespace ControleOnline\Controller\Oauth;
 
 use ControleOnline\Service\DomainService;
+use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -13,10 +14,11 @@ use League\OAuth2\Client\Provider\Google;
 class GoogleReturnController extends DefaultClientController
 {
     public function __construct(
-        EntityManagerInterface $entityManager,
+        protected EntityManagerInterface $manager,
+        protected UserService $userService,
         private DomainService $domainService
     ) {
-        $this->manager = $entityManager;
+
         $this->clientId       = $_ENV['OAUTH_GOOGLE_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_GOOGLE_CLIENT_SECRET'];
 

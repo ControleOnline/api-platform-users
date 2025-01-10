@@ -3,6 +3,7 @@
 namespace ControleOnline\Controller\Oauth;
 
 use ControleOnline\Service\DomainService;
+use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -15,18 +16,18 @@ class FacebookController extends DefaultClientController
 
 
 
-    public function __construct(EntityManagerInterface $entityManager,
-    
-    private DomainService $domainService)
-    {
-        $this->manager = $entityManager;
+    public function __construct(
+        protected EntityManagerInterface $manager,
+        protected UserService $userService,
+        private DomainService $domainService
+    ) {
         $this->clientId       = $_ENV['OAUTH_FACEBOOK_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_FACEBOOK_CLIENT_SECRET'];
 
         $this->provider = new Facebook([
             'clientId'     => $this->clientId,
             'clientSecret' => $this->clientSecret,
-            'redirectUri'  => 'https://' . $this->domainService->getMainDomain(). '/oauth/facebook/return',
+            'redirectUri'  => 'https://' . $this->domainService->getMainDomain() . '/oauth/facebook/return',
             //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Facebook Apps for Business accounts
         ]);
     }

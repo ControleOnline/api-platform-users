@@ -2,6 +2,7 @@
 
 namespace ControleOnline\Controller\Oauth;
 
+use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -9,10 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MercadolivreReturnController
 {
-    public function __construct(EntityManagerInterface $entityManager)
-    {
-        $this->manager = $entityManager;
-    }
+    public function __construct(
+        protected EntityManagerInterface $manager,
+        protected UserService $userService
+    ) {}
 
     public function __invoke(Request $request): Response
     {

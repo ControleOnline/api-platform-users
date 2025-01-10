@@ -3,6 +3,7 @@
 namespace ControleOnline\Controller\Oauth;
 
 use ControleOnline\Service\DomainService;
+use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -15,12 +16,12 @@ class InstagramController extends DefaultClientController
 
 
 
-    public function __construct(EntityManagerInterface $entityManager,
-    
-    private DomainService $domainService
+    public function __construct(
+        protected EntityManagerInterface $manager,
+        protected UserService $userService,
+        private DomainService $domainService
     )
     {
-        $this->manager = $entityManager;
         $this->clientId       = $_ENV['OAUTH_INSTAGRAM_CLIENT_ID'];
         $this->clientSecret   = $_ENV['OAUTH_INSTAGRAM_CLIENT_SECRET'];
 
