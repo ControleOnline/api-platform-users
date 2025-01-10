@@ -152,7 +152,7 @@ class UserService
         'username'       => $username,
       ]);
 
-    if ($username)
+    if ($user)
       throw new Exception("User already exists", 301);
 
     $user = new User();
