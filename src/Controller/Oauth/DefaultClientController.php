@@ -55,7 +55,7 @@ class DefaultClientController extends AbstractController
                 $ownerDetails->getEmail(),
                 md5(microtime()),
                 $ownerDetails->getFirstName(),
-                $ownerDetails->getLasttName()
+                ''//$ownerDetails->getLasttName()
             );
 
             $data = [
