@@ -2,10 +2,7 @@
 
 namespace ControleOnline\Controller\Oauth;
 
-use ControleOnline\Entity\Email;
-use ControleOnline\Entity\Language;
-use ControleOnline\Entity\People;
-use ControleOnline\Entity\User;
+use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use League\OAuth2\Client\Token\AccessToken;
@@ -17,20 +14,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class DefaultClientController extends AbstractController
 {
 
-    /** 
-     * Entity Manager
-     *
-     * @var EntityManagerInterface
-     */
-    protected $manager = null;
     protected $clientId;
     protected $clientSecret;
     protected $provider;
 
-    public function __construct(EntityManagerInterface $entityManager)
-    {
-        $this->manager = $entityManager;
-    }
+    public function __construct(protected EntityManagerInterface $manager, protected UserService $userService) {}
 
     protected function connectAction()
     {
@@ -39,82 +27,7 @@ class DefaultClientController extends AbstractController
         exit;
     }
 
-    protected function discoveryPeople($ownerDetails)
-    {
-        $email = $this->manager->getRepository(Email::class)
-            ->findOneBy([
-                'email'       => $ownerDetails->getEmail(),
-            ]);
-        if ($email) {
-            $people = $email->getPeople();
-        } else {
-            $email = new Email();
-            $email->setEmail($ownerDetails->getEmail());
-            $this->manager->persist($email);
-        }
 
-        if (!$people) {
-
-            $lang = $this->manager->getRepository(Language::class)->findOneBy(['language' => 'pt-BR']);
-            $people = new People();
-            $people->setAlias($ownerDetails->getFirstName());
-            $people->setName($ownerDetails->getLastName());
-            $people->setLanguage($lang);
-            //$people->setBilling(0);
-            //$people->setBillingDays('daily');
-            //$people->setPaymentTerm(1);
-            //$people->setIcms(0);
-            $email->setPeople($people);
-            $this->manager->persist($email);
-        }
-
-        $this->manager->persist($people);
-        $this->manager->flush();
-        return $people;
-    }
-
-    protected function createUser($ownerDetails)
-    {
-        $people = $this->discoveryPeople($ownerDetails);
-
-        $user = new User();
-        $user->setPeople($people);
-        $user->setHash('');
-        $user->setUsername($ownerDetails->getEmail());
-
-        $this->manager->persist($user);
-        $this->manager->flush();
-
-        return $user;
-    }
-
-    protected function discoveryUser($token)
-    {
-        $ownerDetails = $this->provider->getResourceOwner($token);
-
-        $user = $this->manager->getRepository(User::class)
-            ->findOneBy([
-                'username'       => $ownerDetails->getEmail(),
-            ]);
-
-        if (!$user)
-            $user = $this->createUser($ownerDetails);
-
-        $data = [
-            'id'        => $user->getPeople()->getId(),
-            'username'  => $user->getUsername(),
-            'roles'     => $user->getRoles(),
-            'api_key'   => $user->getApiKey(),
-            'people'    => $user->getPeople()->getId(),
-            'mycompany' => $this->getCompanyId($user),
-            'realname'  => $ownerDetails->getFirstName(),
-            'avatar'    => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
-            'email'     => $ownerDetails->getEmail(),
-            'active'    => (int) $user->getPeople()->getEnabled(),
-        ];
-
-        return  $data;
-    }
 
     protected function returnAction(Request $request): JsonResponse
     {
@@ -136,8 +49,25 @@ class DefaultClientController extends AbstractController
                     'code' => $request->get('code')
                 ]);
 
+            $ownerDetails = $this->provider->getResourceOwner($token);
 
-            $data = $this->discoveryUser($token);
+            $user = $this->userService->discoveryUser($ownerDetails->getEmail(), md5(microtime()), $ownerDetails->getFirstName(), $ownerDetails->getLasttName());
+
+            $data = [
+                'id'        => $user->getPeople()->getId(),
+                'username'  => $user->getUsername(),
+                'roles'     => $user->getRoles(),
+                'api_key'   => $user->getApiKey(),
+                'people'    => $user->getPeople()->getId(),
+                'mycompany' => $this->userService->getCompanyId($user),
+                'realname'  => $ownerDetails->getFirstName(),
+                'avatar'    => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
+                'email'     => $ownerDetails->getEmail(),
+                'active'    => (int) $user->getPeople()->getEnabled(),
+            ];
+
+
+
             return new JsonResponse([
                 'response' => [
                     'data'    => $data,
@@ -159,17 +89,5 @@ class DefaultClientController extends AbstractController
         }
     }
 
-    private function getCompany(User $user)
-    {
-        $peopleLink = $user->getPeople()->getLink()->first();
-
-        if ($peopleLink !== false && $peopleLink->getCompany() instanceof People)
-            return $peopleLink->getCompany();
-    }
-
-    private function getCompanyId(User $user)
-    {
-        $company = $this->getCompany($user);
-        return $company ? $company->getId() : null;
-    }
+  
 }

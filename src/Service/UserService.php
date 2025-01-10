@@ -2,6 +2,8 @@
 
 namespace ControleOnline\Service;
 
+use ControleOnline\Entity\Email;
+use ControleOnline\Entity\Language;
 use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +39,58 @@ class UserService
     return $user;
   }
 
+
+  public function discoveryUser($email, $password, $firstName, $lastName)
+  {
+
+    $user = $this->manager->getRepository(User::class)
+      ->findOneBy([
+        'username'       => $email,
+      ]);
+
+
+    $people = $this->discoveryPeople($email, $firstName, $lastName);
+
+    if (!$user)
+      $user = $this->createUser($people, $email, $password);
+
+    return   $user;
+  }
+
+  public function discoveryPeople($email, $firstName = '', $lastName = '')
+  {
+    $email = $this->manager->getRepository(Email::class)
+      ->findOneBy([
+        'email'       => $email,
+      ]);
+    if ($email) {
+      $people = $email->getPeople();
+    } else {
+      $email = new Email();
+      $email->setEmail($email);
+      $this->manager->persist($email);
+    }
+
+    if (!$people) {
+
+      $lang = $this->manager->getRepository(Language::class)->findOneBy(['language' => 'pt-BR']);
+      $people = new People();
+      $people->setAlias($firstName);
+      $people->setName($lastName);
+      $people->setLanguage($lang);
+      //$people->setBilling(0);
+      //$people->setBillingDays('daily');
+      //$people->setPaymentTerm(1);
+      //$people->setIcms(0);
+      $email->setPeople($people);
+      $this->manager->persist($email);
+    }
+
+    $this->manager->persist($people);
+    $this->manager->flush();
+    return $people;
+  }
+
   public function createUser(People $people, $username, $password)
   {
     if (!$this->getPermission())
@@ -50,6 +104,21 @@ class UserService
     $this->manager->persist($user);
     $this->manager->flush();
     return $user;
+  }
+
+
+  public function getCompany(User $user)
+  {
+    $peopleLink = $user->getPeople()->getLink()->first();
+
+    if ($peopleLink !== false && $peopleLink->getCompany() instanceof People)
+      return $peopleLink->getCompany();
+  }
+
+  public function getCompanyId(User $user)
+  {
+    $company = $this->getCompany($user);
+    return $company ? $company->getId() : null;
   }
 
   /**

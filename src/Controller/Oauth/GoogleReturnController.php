@@ -12,9 +12,6 @@ use League\OAuth2\Client\Provider\Google;
 
 class GoogleReturnController extends DefaultClientController
 {
-
-
-
     public function __construct(
         EntityManagerInterface $entityManager,
         private DomainService $domainService
