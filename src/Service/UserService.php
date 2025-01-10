@@ -108,17 +108,17 @@ class UserService
     return $realName;
   }
   
-  public function discoveryPeople($email, $firstName = '', $lastName = '')
+  public function discoveryPeople($mail, $firstName = '', $lastName = '')
   {
     $email = $this->manager->getRepository(Email::class)
       ->findOneBy([
-        'email'       => $email,
+        'email'       => $mail,
       ]);
     if ($email) {
       $people = $email->getPeople();
     } else {
       $email = new Email();
-      $email->setEmail($email);
+      $email->setEmail($mail);
       $this->manager->persist($email);
     }
 
