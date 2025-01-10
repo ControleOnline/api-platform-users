@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\Request;
 use ControleOnline\Entity\User;
 use ControleOnline\Entity\People;
 use ControleOnline\Service\PeopleRoleService;
+use ControleOnline\Service\UserService;
 
 class SecurityController extends AbstractController
 {
@@ -16,6 +17,7 @@ class SecurityController extends AbstractController
   public function __construct(
     private PeopleRoleService $roleService,
     private EntityManagerInterface $manager,
+    protected UserService $userService
   ) {}
 
   public function __invoke(Request $request)
@@ -30,64 +32,7 @@ class SecurityController extends AbstractController
         'error' => 'User not found'
       ]);
 
-    // get contact data from user
+    return $this->json($this->userService->getUserSession($user));
 
-    $email  = '';
-    $code   = '';
-    $number = '';
-
-    if ($user->getPeople()->getEmail()->count() > 0)
-      $email = $user->getPeople()->getEmail()->first()->getEmail();
-
-    if ($user->getPeople()->getPhone()->count() > 0) {
-      $phone  = $user->getPeople()->getPhone()->first();
-      $code   = $phone->getDdd();
-      $number = $phone->getPhone();
-    }
-
-    return $this->json([
-      'id'   => $user->getPeople()->getId(),
-      'username' => $user->getUsername(),
-      'roles'    => $user->getRoles(),
-      'api_key'  => $user->getApiKey(),
-      'people'   => $user->getPeople()->getId(),
-      'mycompany'  => $this->getCompanyId($user),
-      'realname' => $this->getUserRealName($user->getPeople()),
-      'avatar'   => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
-      'email'    => $email,
-      'phone'    => sprintf('%s%s', $code, $number),
-      'active'   => (int) $user->getPeople()->getEnabled(),
-    ]);
-  }
-
-  private function getUserRealName(People $people): string
-  {
-    $realName = 'John Doe';
-
-    if ($people->getPeopleType() == 'J')
-      $realName = $people->getAlias();
-
-    else {
-      if ($people->getPeopleType() == 'F') {
-        $realName  = $people->getName();
-        $realName .= ' ' . $people->getAlias();
-        $realName  = trim($realName);
-      }
-    }
-
-    return $realName;
-  }
-
-  private function getCompany(User $user): ?People
-  {
-    $peopleLink = $this->manager->getRepository(People::class)->getPeopleLinks($user->getPeople(), 'employee', 1);
-    if ($peopleLink !== false && $peopleLink->getCompany() instanceof People)
-      return $peopleLink->getCompany();
-  }
-
-  private function getCompanyId(User $user): ?int
-  {
-    $company = $this->getCompany($user);
-    return $company ? $company->getId() : null;
   }
 }

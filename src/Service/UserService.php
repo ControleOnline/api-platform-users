@@ -57,6 +57,57 @@ class UserService
     return   $user;
   }
 
+  public function getUserSession($user)
+  {
+
+    // get contact data from user
+
+    $email  = '';
+    $code   = '';
+    $number = '';
+
+    if ($user->getPeople()->getEmail()->count() > 0)
+      $email = $user->getPeople()->getEmail()->first()->getEmail();
+
+    if ($user->getPeople()->getPhone()->count() > 0) {
+      $phone  = $user->getPeople()->getPhone()->first();
+      $code   = $phone->getDdd();
+      $number = $phone->getPhone();
+    }
+
+    return [
+      'id'   => $user->getPeople()->getId(),
+      'username' => $user->getUsername(),
+      'roles'    => $user->getRoles(),
+      'api_key'  => $user->getApiKey(),
+      'people'   => $user->getPeople()->getId(),
+      'mycompany'  => $this->getCompanyId($user),
+      'realname' => $this->getUserRealName($user->getPeople()),
+      'avatar'   => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
+      'email'    => $email,
+      'phone'    => sprintf('%s%s', $code, $number),
+      'active'   => (int) $user->getPeople()->getEnabled(),
+    ];
+  }
+
+  private function getUserRealName(People $people): string
+  {
+    $realName = 'John Doe';
+
+    if ($people->getPeopleType() == 'J')
+      $realName = $people->getAlias();
+
+    else {
+      if ($people->getPeopleType() == 'F') {
+        $realName  = $people->getName();
+        $realName .= ' ' . $people->getAlias();
+        $realName  = trim($realName);
+      }
+    }
+
+    return $realName;
+  }
+  
   public function discoveryPeople($email, $firstName = '', $lastName = '')
   {
     $email = $this->manager->getRepository(Email::class)

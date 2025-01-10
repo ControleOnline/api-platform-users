@@ -27,8 +27,6 @@ class DefaultClientController extends AbstractController
         exit;
     }
 
-
-
     protected function returnAction(Request $request): JsonResponse
     {
         try {
@@ -55,23 +53,10 @@ class DefaultClientController extends AbstractController
                 $ownerDetails->getEmail(),
                 md5(microtime()),
                 $ownerDetails->getFirstName(),
-                ''//$ownerDetails->getLasttName()
+                ''
             );
 
-            $data = [
-                'id'        => $user->getPeople()->getId(),
-                'username'  => $user->getUsername(),
-                'roles'     => $user->getRoles(),
-                'api_key'   => $user->getApiKey(),
-                'people'    => $user->getPeople()->getId(),
-                'mycompany' => $this->userService->getCompanyId($user),
-                'realname'  => $ownerDetails->getFirstName(),
-                'avatar'    => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
-                'email'     => $ownerDetails->getEmail(),
-                'active'    => (int) $user->getPeople()->getEnabled(),
-            ];
-
-
+            $data = $this->userService->getUserSession($user);
 
             return new JsonResponse([
                 'response' => [
