@@ -25,11 +25,11 @@ class CreateAccountAction
 
     try {
       $payload   = json_decode($request->getContent());
-      $people =  $this->service->discoveryPeople($payload->username, $payload->firstName, $payload->lastName);
+      $people =  $this->service->discoveryPeople($payload->email, $payload->name);
 
       $user = $this->service->createUser(
         $people,
-        $payload->username,
+        $payload->email,
         $payload->password
       );
 
