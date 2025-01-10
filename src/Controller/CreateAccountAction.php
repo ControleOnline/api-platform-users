@@ -37,7 +37,7 @@ class CreateAccountAction
         'response' => [
           'data'    => $user,
           'count'   => 1,
-          'success' => false,
+          'success' => true,
         ],
       ]);
     } catch (\Exception $e) {
