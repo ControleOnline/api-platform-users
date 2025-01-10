@@ -51,7 +51,12 @@ class DefaultClientController extends AbstractController
 
             $ownerDetails = $this->provider->getResourceOwner($token);
 
-            $user = $this->userService->discoveryUser($ownerDetails->getEmail(), md5(microtime()), $ownerDetails->getFirstName(), $ownerDetails->getLasttName());
+            $user = $this->userService->discoveryUser(
+                $ownerDetails->getEmail(),
+                md5(microtime()),
+                $ownerDetails->getFirstName(),
+                $ownerDetails->getLasttName()
+            );
 
             $data = [
                 'id'        => $user->getPeople()->getId(),
@@ -88,6 +93,4 @@ class DefaultClientController extends AbstractController
             ]);
         }
     }
-
-  
 }
