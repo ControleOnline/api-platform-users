@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use ControleOnline\Service\UserService;
 
-class CreateUserAction
+class CreateAccountAction
 {
 
   public function __construct(
@@ -25,7 +25,7 @@ class CreateUserAction
 
     try {
       $payload   = json_decode($request->getContent());
-      $people =  $this->manager->getRepository(People::class)->find($payload->people);
+      $people =  $this->service->discoveryPeople($payload->username, $payload->firstName, $payload->lastName);
 
       $user = $this->service->createUser(
         $people,

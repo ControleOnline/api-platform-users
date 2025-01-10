@@ -13,6 +13,7 @@ use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
+use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\Oauth\GoogleConnectController;
 use ControleOnline\Controller\Oauth\GoogleReturnController;
@@ -47,6 +48,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
             uriTemplate: '/users',
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            uriTemplate: '/users/create-account',
+            controller: CreateAccountAction::class,
+            securityPostDenormalize: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
         ),
         new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
 
