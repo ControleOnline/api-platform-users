@@ -27,19 +27,19 @@ class CreateAccountAction
       $payload   = json_decode($request->getContent());
       $people =  $this->service->discoveryPeople($payload->email, $payload->name);
 
-      $user = $this->service->createUser(
+      $user = $this->service->getUserSession($this->service->createUser(
         $people,
         $payload->email,
         $payload->password
-      );
+      ));
 
-      return new JsonResponse(
-        $this->hydratorService->item(
-          User::class,
-          $user->getId(),
-          "user:read"
-        )
-      );
+      return new JsonResponse([
+        'response' => [
+          'data'    => $user,
+          'count'   => 1,
+          'success' => false,
+        ],
+      ]);
     } catch (\Exception $e) {
 
       return new JsonResponse([
