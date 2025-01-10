@@ -25,7 +25,11 @@ class CreateUserAction
 
     try {
       $payload   = json_decode($request->getContent());
-      $people =  $this->manager->getRepository(People::class)->find($payload->people);
+
+      if ($payload->people)
+        $people =  $this->manager->getRepository(People::class)->find($payload->people);
+      else
+        $people =  $this->service->discoveryPeople($payload->username, $payload->firstName, $payload->lastName);
 
       $user = $this->service->createUser(
         $people,

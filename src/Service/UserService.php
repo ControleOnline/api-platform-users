@@ -96,6 +96,14 @@ class UserService
     if (!$this->getPermission())
       throw new Exception("You should not pass!!!", 301);
 
+    $user = $this->manager->getRepository(User::class)
+      ->findOneBy([
+        'username'       => $username,
+      ]);
+
+    if ($username)
+      throw new Exception("User already exists", 301);
+
     $user = new User();
     $user->setPeople($people);
     $user->setHash($this->encoder->encodePassword($user, $password));
