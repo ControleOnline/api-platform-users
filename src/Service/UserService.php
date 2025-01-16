@@ -12,7 +12,11 @@ use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 
 class UserService
 {
-  public function __construct(private EntityManagerInterface $manager, private  UserPasswordEncoderInterface $encoder) {}
+  public function __construct(
+    private EntityManagerInterface $manager,
+    private  UserPasswordEncoderInterface $encoder,
+    private FileService $fileService
+  ) {}
   public function changePassword(User $user, $password)
   {
     if (!$this->getPermission())
@@ -83,7 +87,7 @@ class UserService
       'people'   => $user->getPeople()->getId(),
       'mycompany'  => $this->getCompanyId($user),
       'realname' => $this->getUserRealName($user->getPeople()),
-      'avatar'   => $user->getPeople()->getImage() ? '/files/' . $user->getPeople()->getImage()->getId() . '/download' : null,
+      'avatar'   => $this->fileService->getFileUrl($user->getPeople()),
       'email'    => $email,
       'phone'    => sprintf('%s%s', $code, $number),
       'active'   => (int) $user->getPeople()->getEnabled(),
@@ -107,7 +111,7 @@ class UserService
 
     return $realName;
   }
-  
+
   public function discoveryPeople($mail, $firstName = '', $lastName = '')
   {
     $email = $this->manager->getRepository(Email::class)
