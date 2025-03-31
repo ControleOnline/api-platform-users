@@ -5,7 +5,6 @@ namespace ControleOnline\Entity;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
@@ -22,8 +21,6 @@ use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\EntityListeners(['ControleOnline\Listener\LogListener'])]
@@ -36,40 +33,46 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     operations: [
         new GetCollection(
-            security: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            security: 'is_granted("IS_AUTHENTICATED_ANONYMOUSLY")',
             uriTemplate: '/oauth/mercadolivre/return',
-            controller: MercadolivreReturnController::class,
+            controller: MercadolivreReturnController::class
         ),
         new Post(
             uriTemplate: '/users',
             controller: CreateUserAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted("ROLE_CLIENT")'
         ),
         new Post(
             uriTemplate: '/users/create-account',
             controller: CreateAccountAction::class,
-            securityPostDenormalize: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            securityPostDenormalize: 'is_granted("IS_AUTHENTICATED_ANONYMOUSLY")'
         ),
-        new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
+        new Delete(
+            security: 'is_granted("ROLE_CLIENT")'
+        ),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted("ROLE_CLIENT")'
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted("ROLE_CLIENT")'
         ),
         new Post(
             uriTemplate: '/token',
             controller: SecurityController::class,
-            securityPostDenormalize: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            securityPostDenormalize: 'is_granted("IS_AUTHENTICATED_ANONYMOUSLY")'
         ),
-        new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
-        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+        new Get(
+            security: 'is_granted("ROLE_CLIENT")'
+        ),
+        new GetCollection(
+            security: 'is_granted("ROLE_CLIENT")'
+        )
     ],
-    formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
+    formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => 'text/csv'],
     normalizationContext: ['groups' => ['user:read']],
     denormalizationContext: ['groups' => ['user:write']]
 )]
