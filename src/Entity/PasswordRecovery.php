@@ -1,6 +1,7 @@
 <?php
 
-namespace ControleOnline\Entity;
+namespace ControleOnline\Entity; 
+use ControleOnline\Listener\LogListener;
 
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\ApiResource;

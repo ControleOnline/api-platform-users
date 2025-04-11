@@ -1,6 +1,7 @@
 <?php
 
-namespace ControleOnline\Entity;
+namespace ControleOnline\Entity; 
+use ControleOnline\Listener\LogListener;
 
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
@@ -21,8 +22,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
-#[ORM\Entity(repositoryClass: 'ControleOnline\Repository\UserRepository')]
-#[ORM\EntityListeners(['ControleOnline\Listener\LogListener'])]
+#[ORM\Entity(repositoryClass: \ControleOnline\Repository\UserRepository::class)]
+#[ORM\EntityListeners([\LogListener::class])]
 #[ORM\Table(name: 'users')]
 #[ORM\UniqueConstraint(name: 'user_name', columns: ['username'])]
 #[ORM\UniqueConstraint(name: 'api_key', columns: ['api_key'])]
