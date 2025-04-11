@@ -16,25 +16,32 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class UserRepository extends ServiceEntityRepository implements UserLoaderInterface
 {
-    private $encoder;
 
-    public function __construct(ManagerRegistry $registry, UserPasswordEncoderInterface $encoder)
+    public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, User::class);
-
-        $this->encoder = $encoder;
     }
+
+    public function loadUserByIdentifier(string $identifier): ?\Symfony\Component\Security\Core\User\UserInterface
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.username = :identifier')
+            ->setParameter('identifier', $identifier)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
 
     public function updatePassword(string $email, string $password): ?User
     {
         if ($user = $this->findOneByEmail($email)) {
-          $user->setPassword($password);
+            $user->setPassword($password);
 
-          $this->getEntityManager()->persist($user);
+            $this->getEntityManager()->persist($user);
 
-          $this->getEntityManager()->flush();
+            $this->getEntityManager()->flush();
 
-          return $user;
+            return $user;
         }
     }
 

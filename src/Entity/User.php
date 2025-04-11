@@ -154,6 +154,11 @@ class User implements UserInterface
      *
      * @return string|null The encoded password if any
      */
+
+    public function getUserIdentifier(): string
+    {
+        return $this->getUsername();
+    }
     public function getPassword()
     {
         return $this->hash;
@@ -172,7 +177,7 @@ class User implements UserInterface
      *
      * @return string[] The user roles
      */
-    public function getRoles()
+    public function getRoles(): array
     {
         return ['ROLE_CLIENT'];
     }
@@ -186,7 +191,7 @@ class User implements UserInterface
     /**
      * @see UserInterface
      */
-    public function eraseCredentials()
+    public function eraseCredentials(): void
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;

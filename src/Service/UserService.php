@@ -8,187 +8,180 @@ use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
-use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserService
 {
-  public function __construct(
-    private EntityManagerInterface $manager,
-    private  UserPasswordEncoderInterface $encoder,
-    private FileService $fileService
-  ) {}
-  public function changePassword(User $user, $password)
-  {
-    if (!$this->getPermission())
-      throw new Exception("You should not pass!!!", 301);
+    public function __construct(
+        private EntityManagerInterface $manager,
+        private UserPasswordHasherInterface $passwordHasher,
+        private FileService $fileService
+    ) {}
 
-    $user->setHash(
-      $this->encoder->encodePassword($user, $password)
-    );
+    public function changePassword(User $user, $password)
+    {
+        if (!$this->getPermission()) {
+            throw new Exception("You should not pass!!!", 301);
+        }
 
-    $this->manager->persist($user);
-    $this->manager->flush();
-    return $user;
-  }
+        $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
+        $user->setHash($hashedPassword);
 
-  public function changeApiKey(User $user)
-  {
-    if (!$this->getPermission())
-      throw new Exception("You should not pass!!!", 301);
-
-    $user->generateApiKey();
-
-    $this->manager->persist($user);
-    $this->manager->flush();
-    return $user;
-  }
-
-
-  public function discoveryUser($email, $password, $firstName, $lastName)
-  {
-
-    $user = $this->manager->getRepository(User::class)
-      ->findOneBy([
-        'username'       => $email,
-      ]);
-
-
-    $people = $this->discoveryPeople($email, $firstName, $lastName);
-
-    if (!$user)
-      $user = $this->createUser($people, $email, $password);
-
-    return   $user;
-  }
-
-  public function getUserSession($user)
-  {
-
-    // get contact data from user
-
-    $email  = '';
-    $code   = '';
-    $number = '';
-
-    if ($user->getPeople()->getEmail()->count() > 0)
-      $email = $user->getPeople()->getEmail()->first()->getEmail();
-
-    if ($user->getPeople()->getPhone()->count() > 0) {
-      $phone  = $user->getPeople()->getPhone()->first();
-      $code   = $phone->getDdd();
-      $number = $phone->getPhone();
+        $this->manager->persist($user);
+        $this->manager->flush();
+        return $user;
     }
 
-    return [
-      'id'   => $user->getPeople()->getId(),
-      'username' => $user->getUsername(),
-      'roles'    => $user->getRoles(),
-      'api_key'  => $user->getApiKey(),
-      'people'   => $user->getPeople()->getId(),
-      'mycompany'  => $this->getCompanyId($user),
-      'realname' => $this->getUserRealName($user->getPeople()),
-      'avatar'   => $this->fileService->getFileUrl($user->getPeople()),
-      'email'    => $email,
-      'phone'    => sprintf('%s%s', $code, $number),
-      'active'   => (int) $user->getPeople()->getEnabled(),
-    ];
-  }
+    public function changeApiKey(User $user)
+    {
+        if (!$this->getPermission()) {
+            throw new Exception("You should not pass!!!", 301);
+        }
 
-  private function getUserRealName(People $people): string
-  {
-    $realName = 'John Doe';
+        $user->generateApiKey();
 
-    if ($people->getPeopleType() == 'J')
-      $realName = $people->getAlias();
-
-    else {
-      if ($people->getPeopleType() == 'F') {
-        $realName  = $people->getName();
-        $realName .= ' ' . $people->getAlias();
-        $realName  = trim($realName);
-      }
+        $this->manager->persist($user);
+        $this->manager->flush();
+        return $user;
     }
 
-    return $realName;
-  }
+    public function discoveryUser($email, $password, $firstName, $lastName)
+    {
+        $user = $this->manager->getRepository(User::class)
+            ->findOneBy([
+                'username' => $email,
+            ]);
 
-  public function discoveryPeople($mail, $firstName = '', $lastName = '')
-  {
-    $email = $this->manager->getRepository(Email::class)
-      ->findOneBy([
-        'email'       => $mail,
-      ]);
-    if ($email) {
-      $people = $email->getPeople();
-    } else {
-      $email = new Email();
-      $email->setEmail($mail);
-      $this->manager->persist($email);
+        $people = $this->discoveryPeople($email, $firstName, $lastName);
+
+        if (!$user) {
+            $user = $this->createUser($people, $email, $password);
+        }
+
+        return $user;
     }
 
-    if (!$people) {
+    public function getUserSession($user)
+    {
+        $email = '';
+        $code = '';
+        $number = '';
 
-      $lang = $this->manager->getRepository(Language::class)->findOneBy(['language' => 'pt-BR']);
-      $people = new People();
-      $people->setAlias($firstName);
-      $people->setName($lastName);
-      $people->setLanguage($lang);
-      //$people->setBilling(0);
-      //$people->setBillingDays('daily');
-      //$people->setPaymentTerm(1);
-      //$people->setIcms(0);
-      $email->setPeople($people);
-      $this->manager->persist($email);
+        if ($user->getPeople()->getEmail()->count() > 0) {
+            $email = $user->getPeople()->getEmail()->first()->getEmail();
+        }
+
+        if ($user->getPeople()->getPhone()->count() > 0) {
+            $phone = $user->getPeople()->getPhone()->first();
+            $code = $phone->getDdd();
+            $number = $phone->getPhone();
+        }
+
+        return [
+            'id' => $user->getPeople()->getId(),
+            'username' => $user->getUsername(),
+            'roles' => $user->getRoles(),
+            'api_key' => $user->getApiKey(),
+            'people' => $user->getPeople()->getId(),
+            'mycompany' => $this->getCompanyId($user),
+            'realname' => $this->getUserRealName($user->getPeople()),
+            'avatar' => $this->fileService->getFileUrl($user->getPeople()),
+            'email' => $email,
+            'phone' => sprintf('%s%s', $code, $number),
+            'active' => (int) $user->getPeople()->getEnabled(),
+        ];
     }
 
-    $this->manager->persist($people);
-    $this->manager->flush();
-    return $people;
-  }
+    private function getUserRealName(People $people): string
+    {
+        $realName = 'John Doe';
 
-  public function createUser(People $people, $username, $password)
-  {
-    if (!$this->getPermission())
-      throw new Exception("You should not pass!!!", 301);
+        if ($people->getPeopleType() == 'J') {
+            $realName = $people->getAlias();
+        } else {
+            if ($people->getPeopleType() == 'F') {
+                $realName = $people->getName() . ' ' . $people->getAlias();
+                $realName = trim($realName);
+            }
+        }
 
-    $user = $this->manager->getRepository(User::class)
-      ->findOneBy([
-        'username'       => $username,
-      ]);
+        return $realName;
+    }
 
-    if ($user)
-      throw new Exception("User already exists", 301);
+    public function discoveryPeople($mail, $firstName = '', $lastName = '')
+    {
+        $email = $this->manager->getRepository(Email::class)
+            ->findOneBy([
+                'email' => $mail,
+            ]);
+        if ($email) {
+            $people = $email->getPeople();
+        } else {
+            $email = new Email();
+            $email->setEmail($mail);
+            $this->manager->persist($email);
+        }
 
-    $user = new User();
-    $user->setPeople($people);
-    $user->setHash($this->encoder->encodePassword($user, $password));
-    $user->setUsername($username);
+        if (!$people) {
+            $lang = $this->manager->getRepository(Language::class)->findOneBy(['language' => 'pt-BR']);
+            $people = new People();
+            $people->setAlias($firstName);
+            $people->setName($lastName);
+            $people->setLanguage($lang);
+            $email->setPeople($people);
+            $this->manager->persist($email);
+        }
 
-    $this->manager->persist($user);
-    $this->manager->flush();
-    return $user;
-  }
+        $this->manager->persist($people);
+        $this->manager->flush();
+        return $people;
+    }
 
+    public function createUser(People $people, $username, $password)
+    {
+        if (!$this->getPermission()) {
+            throw new Exception("You should not pass!!!", 301);
+        }
 
-  public function getCompany(User $user)
-  {
-    $peopleLink = $user->getPeople()->getLink()->first();
+        $user = $this->manager->getRepository(User::class)
+            ->findOneBy([
+                'username' => $username,
+            ]);
 
-    if ($peopleLink !== false && $peopleLink->getCompany() instanceof People)
-      return $peopleLink->getCompany();
-  }
+        if ($user) {
+            throw new Exception("User already exists", 301);
+        }
 
-  public function getCompanyId(User $user)
-  {
-    $company = $this->getCompany($user);
-    return $company ? $company->getId() : null;
-  }
+        $user = new User();
+        $user->setPeople($people);
+        $user->setHash($this->passwordHasher->hashPassword($user, $password));
+        $user->setUsername($username);
 
-  /**
-   * @todo arrumar 
-   */
-  private function getPermission()
-  {
-    return true;
-  }
+        $this->manager->persist($user);
+        $this->manager->flush();
+        return $user;
+    }
+
+    public function getCompany(User $user)
+    {
+        $peopleLink = $user->getPeople()->getLink()->first();
+
+        if ($peopleLink !== false && $peopleLink->getCompany() instanceof People) {
+            return $peopleLink->getCompany();
+        }
+    }
+
+    public function getCompanyId(User $user)
+    {
+        $company = $this->getCompany($user);
+        return $company ? $company->getId() : null;
+    }
+
+    /**
+     * @todo arrumar
+     */
+    private function getPermission()
+    {
+        return true;
+    }
 }

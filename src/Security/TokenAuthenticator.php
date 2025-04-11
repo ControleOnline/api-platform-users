@@ -9,102 +9,78 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
-use Symfony\Component\Security\Guard\AbstractGuardAuthenticator;
+use Symfony\Component\Security\Http\Authenticator\AuthenticatorInterface;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\CustomCredentials;
+use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
+use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken; // Ou outro tipo de token apropriado
 
-class TokenAuthenticator extends AbstractGuardAuthenticator
+class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryPointInterface
 {
+    private TokenStorageInterface $tokenStorage;
 
-    public function __construct(private EntityManagerInterface $em) {}
-    public function getKey(Request $request)
+    public function __construct(private EntityManagerInterface $em, TokenStorageInterface $tokenStorage)
     {
-        return $request->headers->get(
-            'Authorization',
-            $request->headers->get(
-                'API-TOKEN',
-                $request->headers->get(
-                    'API-KEY'
-                )
+        $this->tokenStorage = $tokenStorage;
+    }
+
+    public function supports(Request $request): ?bool
+    {
+        return $this->getKey($request) !== null;
+    }
+
+    public function authenticate(Request $request): Passport
+    {
+        $apiToken = $this->getKey($request);
+        if (null === $apiToken) {
+            throw new CustomUserMessageAuthenticationException('No API token provided');
+        }
+
+        return new Passport(
+            new UserBadge($apiToken, function ($apiToken) {
+                return $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
+            }),
+            new CustomCredentials(
+                function ($credentials, UserInterface $user) {
+                    return true; // No need to check credentials for API token
+                },
+                $apiToken
             )
         );
     }
-    /**
-     * Called on every request to decide if this authenticator should be
-     * used for the request. Returning `false` will cause this authenticator
-     * to be skipped.
-     */
-    public function supports(Request $request)
+
+    public function createAuthenticatedToken(Passport $passport, string $firewallName): TokenInterface
     {
-        return $this->getKey($request);
+        return $passport->createAuthenticatedToken($passport->getUser(), $firewallName);
+    }
+    public function createToken(Passport $passport, string $firewallName): TokenInterface
+    {
+        return $this->createAuthenticatedToken($passport, $firewallName);
+    }
+    public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
+    {
+        return null; 
     }
 
-    /**
-     * Called on every request. Return whatever credentials you want to
-     * be passed to getUser() as $credentials.
-     */
-    public function getCredentials(Request $request)
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        return $this->getKey($request);
-    }
-
-    public function getUser($credentials, UserProviderInterface $userProvider)
-    {
-        if (null === $credentials) {
-            // The token header was empty, authentication fails with HTTP Status
-            // Code 401 "Unauthorized"
-            return null;
-        }
-
-        // if a User is returned, checkCredentials() is called
-        return $this->em->getRepository(User::class)
-            ->findOneBy(['apiKey' => $credentials])
-        ;
-    }
-
-    public function checkCredentials($credentials, UserInterface $user)
-    {
-        // Check credentials - e.g. make sure the password is valid.
-        // In case of an API token, no credential check is needed.
-
-        // Return `true` to cause authentication success
-        return true;
-    }
-
-    public function onAuthenticationSuccess(Request $request, TokenInterface $token, $providerKey)
-    {
-        // on success, let the request continue
-        return null;
-    }
-
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception)
-    {
-        $data = [
-            // you may want to customize or obfuscate the message first
-            'message' => strtr($exception->getMessageKey(), $exception->getMessageData())
-
-            // or to translate this message
-            // $this->translator->trans($exception->getMessageKey(), $exception->getMessageData())
-        ];
-
+        $data = ['message' => strtr($exception->getMessageKey(), $exception->getMessageData())];
         return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
     }
 
-    /**
-     * Called when authentication is needed, but it's not sent
-     */
-    public function start(Request $request, AuthenticationException $authException = null)
+    public function start(Request $request, AuthenticationException $authException = null): Response
     {
-        $data = [
-            // you might translate this message
-            'message' => 'Authentication Required'
-        ];
-
+        $data = ['message' => 'Authentication Required'];
         return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
     }
 
-    public function supportsRememberMe()
+    private function getKey(Request $request)
     {
-        return false;
+        return $request->headers->get('Authorization') ?? $request->headers->get('API-TOKEN') ?? $request->headers->get('API-KEY');
     }
 }
