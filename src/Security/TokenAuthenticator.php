@@ -60,6 +60,11 @@ class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryP
         return new UsernamePasswordToken($user, $firewallName, $user->getRoles());
     }
 
+    public function createToken(Passport $passport, string $firewallName): TokenInterface
+    {
+        return $this->createAuthenticatedToken($passport, $firewallName);
+    }
+
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
         return null;
