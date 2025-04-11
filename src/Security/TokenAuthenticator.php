@@ -18,7 +18,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\CustomCre
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken; // Ou outro tipo de token apropriado
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
 class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryPointInterface
 {
@@ -47,24 +47,22 @@ class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryP
             }),
             new CustomCredentials(
                 function ($credentials, UserInterface $user) {
-                    return true; // No need to check credentials for API token
+                    return true;
                 },
                 $apiToken
             )
         );
     }
 
-    public function createAuthenticatedToken(Passport $passport, string $firewallName): TokenInterface
+    public function createAuthenticatedToken(Passport $passport, string $firewallName): ?TokenInterface
     {
-        return $passport->createAuthenticatedToken($passport->getUser(), $firewallName);
+        $user = $passport->getUser();
+        return new UsernamePasswordToken($user, $firewallName, $user->getRoles());
     }
-    public function createToken(Passport $passport, string $firewallName): TokenInterface
-    {
-        return $this->createAuthenticatedToken($passport, $firewallName);
-    }
+
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        return null; 
+        return null;
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
