@@ -32,12 +32,16 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
 
     public function supports(Request $request): ?bool
     {
-        // Ignora rotas marcadas como PUBLIC_ACCESS
         $token = new NullToken();
-        if ($this->accessDecisionManager->decide($token, ['PUBLIC_ACCESS'], $request)) {
+        $isPublic = $this->accessDecisionManager->decide($token, ['PUBLIC_ACCESS'], $request);
+        error_log('Path: ' . $request->getPathInfo());
+        error_log('Is PUBLIC_ACCESS: ' . var_export($isPublic, true));
+    
+        if ($isPublic) {
+            error_log('Public route detected, skipping authenticator');
             return false;
         }
-
+    
         $key = $this->getKey($request);
         return $key !== null && !empty(trim($key));
     }
