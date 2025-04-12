@@ -39,6 +39,7 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
             return false;
 
         $key = $this->getKey($request);
+        error_log($key);
         return $key !== null && !empty(trim($key));
     }
 
