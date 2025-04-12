@@ -9,6 +9,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\NullToken;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
@@ -19,12 +21,23 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 
 class TokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    public function __construct(
-        private EntityManagerInterface $em
-    ) {}
+    private $em;
+    private $accessDecisionManager;
+
+    public function __construct(EntityManagerInterface $em, AccessDecisionManagerInterface $accessDecisionManager)
+    {
+        $this->em = $em;
+        $this->accessDecisionManager = $accessDecisionManager;
+    }
 
     public function supports(Request $request): ?bool
     {
+        // Ignora rotas marcadas como PUBLIC_ACCESS
+        $token = new NullToken();
+        if ($this->accessDecisionManager->decide($token, ['PUBLIC_ACCESS'], $request)) {
+            return false;
+        }
+
         $key = $this->getKey($request);
         return $key !== null && !empty(trim($key));
     }
@@ -32,15 +45,16 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
     public function authenticate(Request $request): Passport
     {
         $apiToken = $this->getKey($request);
-        if (null === $apiToken)
+        if (null === $apiToken) {
             throw new CustomUserMessageAuthenticationException('No API token provided');
-
+        }
 
         return new Passport(
             new UserBadge($apiToken, function ($apiToken) {
                 $user = $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
-                if (null === $user)
+                if (null === $user) {
                     throw new CustomUserMessageAuthenticationException('Invalid API token');
+                }
 
                 return $user;
             }),
