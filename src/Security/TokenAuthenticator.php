@@ -34,7 +34,7 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
     {
         $token = new NullToken();
         $isPublic = $this->accessDecisionManager->decide($token, ['PUBLIC_ACCESS'], $request);
-
+        error_log('aqui');
         if ($isPublic)
             return false;
 
