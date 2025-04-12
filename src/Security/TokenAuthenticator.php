@@ -24,39 +24,25 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
     public function __construct(EntityManagerInterface $em)
     {
         $this->em = $em;
-        error_log('TokenAuthenticator::construct called');
     }
 
     public function supports(Request $request): ?bool
     {
-        error_log('TokenAuthenticator::supports called for path: ' . $request->getPathInfo());
-
         $key = $this->getKey($request);
-        error_log('API key: ' . ($key !== null ? 'present' : 'missing'));
-
-        // Só tenta autenticar se houver um token válido
         return $key !== null && !empty(trim($key));
     }
 
     public function authenticate(Request $request): Passport
     {
-        error_log('TokenAuthenticator::authenticate called');
-
         $apiToken = $this->getKey($request);
-        if (null === $apiToken) {
-            error_log('No API token provided');
+        if (null === $apiToken)
             throw new CustomUserMessageAuthenticationException('No API token provided');
-        }
 
-        error_log('Attempting to load user with API token');
         return new Passport(
             new UserBadge($apiToken, function ($apiToken) {
                 $user = $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
-                if (null === $user) {
-                    error_log('Invalid API token');
+                if (null === $user)
                     throw new CustomUserMessageAuthenticationException('Invalid API token');
-                }
-                error_log('User found: ' . $user->getUsername());
                 return $user;
             }),
             new CustomCredentials(
@@ -69,32 +55,26 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
     public function createToken(Passport $passport, string $firewallName): TokenInterface
     {
         $user = $passport->getUser();
-        error_log('Creating token for user: ' . $user->getUsername());
         return new UsernamePasswordToken($user, $firewallName, $user->getRoles());
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        error_log('Authentication successful for user: ' . $token->getUserIdentifier());
         return null;
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        error_log('Authentication failed: ' . $exception->getMessage());
         return new JsonResponse(['message' => 'Authentication failed'], Response::HTTP_UNAUTHORIZED);
     }
 
     public function start(Request $request, AuthenticationException $authException = null): Response
     {
-        error_log('Authentication required for path: ' . $request->getPathInfo());
         return new JsonResponse(['message' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
     }
 
     private function getKey(Request $request): ?string
     {
-        $key = $request->headers->get('API-KEY') ?? $request->headers->get('API-TOKEN');
-        error_log('Checking API key in headers: ' . ($key !== null ? 'present' : 'missing'));
-        return $key;
+        return $request->headers->get('API-KEY') ?? $request->headers->get('API-TOKEN');
     }
 }
