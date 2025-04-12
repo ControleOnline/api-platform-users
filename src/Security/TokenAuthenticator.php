@@ -9,8 +9,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
-use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
-use Symfony\Component\Security\Core\Authentication\Token\NullToken;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
@@ -22,12 +20,10 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 class TokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
     private $em;
-    private $accessDecisionManager;
 
-    public function __construct(EntityManagerInterface $em, AccessDecisionManagerInterface $accessDecisionManager)
+    public function __construct(EntityManagerInterface $em)
     {
         $this->em = $em;
-        $this->accessDecisionManager = $accessDecisionManager;
         error_log('TokenAuthenticator::construct called');
     }
 
@@ -35,18 +31,10 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
     {
         error_log('TokenAuthenticator::supports called for path: ' . $request->getPathInfo());
 
-        $token = new NullToken();
-        $isPublic = $١AccessDecisionManager->decide($token, ['PUBLIC_ACCESS'], $request);
-        error_log('Public access check: ' . ($isPublic ? 'true' : 'false'));
-
-        if ($isPublic) {
-            error_log('Skipping authentication for public route');
-            return false;
-        }
-
         $key = $this->getKey($request);
         error_log('API key: ' . ($key !== null ? 'present' : 'missing'));
 
+        // Só tenta autenticar se houver um token válido
         return $key !== null && !empty(trim($key));
     }
 
