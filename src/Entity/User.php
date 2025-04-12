@@ -19,7 +19,7 @@ use ControleOnline\Controller\Oauth\MercadolivreReturnController;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface; // Adicione esta interface
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface; 
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
