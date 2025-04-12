@@ -84,10 +84,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: 'string', length: 50, nullable: false)]
     #[Groups(['people:read', 'user:read'])]
-    private string $username;
+    private string $username = '';
 
     #[ORM\Column(type: 'string', length: 255, nullable: false)]
-    private string $hash;
+    private string $hash = '';
 
     #[ORM\Column(type: 'string', length: 60, nullable: true)]
     private ?string $oauthUser = null;
@@ -100,7 +100,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
     #[Groups(['people:read', 'user:read'])]
-    private string $apiKey;
+    private string $apiKey = '';
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]
     #[ORM\JoinColumn(name: 'people_id', referencedColumnName: 'id', nullable: false)]
