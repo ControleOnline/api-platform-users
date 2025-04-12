@@ -44,6 +44,7 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
 
     public function authenticate(Request $request): Passport
     {
+        error_log('aqui');
         $apiToken = $this->getKey($request);
         if (null === $apiToken)
             throw new CustomUserMessageAuthenticationException('No API token provided');
