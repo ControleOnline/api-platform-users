@@ -18,12 +18,13 @@ use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\Oauth\MercadolivreReturnController;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
+use ControleOnline\Repository\UserRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface; 
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
-#[ORM\Entity(repositoryClass: \ControleOnline\Repository\UserRepository::class)]
+#[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\EntityListeners([LogListener::class])]
 #[ORM\Table(name: 'users')]
 #[ORM\UniqueConstraint(name: 'user_name', columns: ['username'])]
@@ -62,6 +63,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
             uriTemplate: '/token',
             controller: SecurityController::class,
             securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
+            security: 'is_granted(\'PUBLIC_ACCESS\')',
+
         ),
         new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
@@ -132,7 +135,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getPassword(): ?string
     {
-        return $this->hash; // Já implementado, compatível com PasswordAuthenticatedUserInterface
+        return $this->hash; 
     }
 
     public function getRoles(): array
@@ -194,7 +197,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->oauthUser;
     }
 
-    public function setPeople(?People $people): self
+    public function setPeople(People $people): self
     {
         $this->people = $people;
         return $this;
