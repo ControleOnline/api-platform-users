@@ -61,7 +61,7 @@ class UserService
         return $user;
     }
 
-    public function getUserSession($user)
+    public function getUserSession(User $user)
     {
         $email = '';
         $code = '';
