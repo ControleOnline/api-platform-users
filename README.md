@@ -22,7 +22,7 @@ config\packages\security.yaml
 security:
     encoders:
         ControleOnline\Entity\User:
-            algorithm: auto
+            algorithm: bcrypt
     providers:
         app_user_provider:
             entity:
@@ -43,12 +43,12 @@ security:
                 authenticators:
                     - App\Security\TokenAuthenticator
     role_hierarchy:
-        ROLE_SUPER : ROLE_ADMIN
+        ROLE_ADMIN : ROLE_ADMIN
         ROLE_ADMIN : ROLE_CLIENT
-        ROLE_CLIENT: ROLE_USER
+        ROLE_CLIENT: ROLE_CLIENT
 
     access_control:
-        - { path: ^/my_contracts/signatures-finished, roles: IS_AUTHENTICATED_ANONYMOUSLY, requires_channel: https }
+        - { path: ^/my_contracts/signatures-finished, roles: PUBLIC_ACCESS, requires_channel: https }
 
 ```
 

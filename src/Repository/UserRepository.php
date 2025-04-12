@@ -7,6 +7,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @method User|null find($id, $lockMode = null, $lockVersion = null)
@@ -22,7 +23,7 @@ class UserRepository extends ServiceEntityRepository implements UserLoaderInterf
         parent::__construct($registry, User::class);
     }
 
-    public function loadUserByIdentifier(string $identifier): ?\Symfony\Component\Security\Core\User\UserInterface
+    public function loadUserByIdentifier(string $identifier): ?UserInterface
     {
         return $this->createQueryBuilder('u')
             ->andWhere('u.username = :identifier')

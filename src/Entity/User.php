@@ -1,8 +1,8 @@
 <?php
 
-namespace ControleOnline\Entity; 
-use ControleOnline\Listener\LogListener;
+namespace ControleOnline\Entity;
 
+use ControleOnline\Listener\LogListener;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\ApiResource;
@@ -19,6 +19,7 @@ use ControleOnline\Controller\Oauth\MercadolivreReturnController;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface; // Adicione esta interface
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -32,7 +33,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     operations: [
         new GetCollection(
-            security: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            security: 'is_granted(\'PUBLIC_ACCESS\')',
             uriTemplate: '/oauth/mercadolivre/return',
             controller: MercadolivreReturnController::class,
         ),
@@ -44,7 +45,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/users/create-account',
             controller: CreateAccountAction::class,
-            securityPostDenormalize: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
         ),
         new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
         new Put(
@@ -60,7 +61,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/token',
             controller: SecurityController::class,
-            securityPostDenormalize: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')',
+            securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
         ),
         new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
@@ -70,7 +71,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     denormalizationContext: ['groups' => ['user:write']]
 )]
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
-class User implements UserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
@@ -131,7 +132,7 @@ class User implements UserInterface
 
     public function getPassword(): ?string
     {
-        return $this->hash;
+        return $this->hash; // Já implementado, compatível com PasswordAuthenticatedUserInterface
     }
 
     public function getRoles(): array

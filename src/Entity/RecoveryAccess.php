@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\ApiFilter;
 use Symfony\Component\Validator\Constraints as Assert;
 /**
  */
-#[ApiResource(operations: [new Post(status: 202)], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], security: 'is_granted(\'IS_AUTHENTICATED_ANONYMOUSLY\')', messenger: true)]
+#[ApiResource(operations: [new Post(status: 202)], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], security: 'is_granted(\'PUBLIC_ACCESS\')', messenger: true)]
 final class RecoveryAccess
 {
     /**

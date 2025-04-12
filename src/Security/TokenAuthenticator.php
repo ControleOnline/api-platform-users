@@ -8,30 +8,25 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
-use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Security\Core\User\UserProviderInterface;
-use Symfony\Component\Security\Http\Authenticator\AuthenticatorInterface;
+use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\CustomCredentials;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
-class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryPointInterface
+class TokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    private TokenStorageInterface $tokenStorage;
-
-    public function __construct(private EntityManagerInterface $em, TokenStorageInterface $tokenStorage)
-    {
-        $this->tokenStorage = $tokenStorage;
-    }
+    public function __construct(
+        private EntityManagerInterface $em
+    ) {}
 
     public function supports(Request $request): ?bool
     {
-        return $this->getKey($request) !== null;
+        $key = $this->getKey($request);
+        return $key !== null && !empty(trim($key));
     }
 
     public function authenticate(Request $request): Passport
@@ -43,26 +38,23 @@ class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryP
 
         return new Passport(
             new UserBadge($apiToken, function ($apiToken) {
-                return $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
+                $user = $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
+                if (null === $user) {
+                    throw new CustomUserMessageAuthenticationException('Invalid API token');
+                }
+                return $user;
             }),
             new CustomCredentials(
-                function ($credentials, UserInterface $user) {
-                    return true;
-                },
+                fn($credentials, $user) => true,
                 $apiToken
             )
         );
     }
 
-    public function createAuthenticatedToken(Passport $passport, string $firewallName): ?TokenInterface
+    public function createToken(Passport $passport, string $firewallName): TokenInterface
     {
         $user = $passport->getUser();
         return new UsernamePasswordToken($user, $firewallName, $user->getRoles());
-    }
-
-    public function createToken(Passport $passport, string $firewallName): TokenInterface
-    {
-        return $this->createAuthenticatedToken($passport, $firewallName);
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
@@ -72,18 +64,16 @@ class TokenAuthenticator implements AuthenticatorInterface, AuthenticationEntryP
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        $data = ['message' => strtr($exception->getMessageKey(), $exception->getMessageData())];
-        return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
+        return new JsonResponse(['message' => 'Authentication failed'], Response::HTTP_UNAUTHORIZED);
     }
 
     public function start(Request $request, AuthenticationException $authException = null): Response
     {
-        $data = ['message' => 'Authentication Required'];
-        return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
+        return new JsonResponse(['message' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
     }
 
-    private function getKey(Request $request)
+    private function getKey(Request $request): ?string
     {
-        return $request->headers->get('Authorization') ?? $request->headers->get('API-TOKEN') ?? $request->headers->get('API-KEY');
+        return $request->headers->get('API-KEY') ?? $request->headers->get('API-TOKEN');
     }
 }
