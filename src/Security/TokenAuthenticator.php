@@ -32,16 +32,16 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
     public function authenticate(Request $request): Passport
     {
         $apiToken = $this->getKey($request);
-        if (null === $apiToken) {
+        if (null === $apiToken)
             throw new CustomUserMessageAuthenticationException('No API token provided');
-        }
+
 
         return new Passport(
             new UserBadge($apiToken, function ($apiToken) {
                 $user = $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
-                if (null === $user) {
+                if (null === $user)
                     throw new CustomUserMessageAuthenticationException('Invalid API token');
-                }
+
                 return $user;
             }),
             new CustomCredentials(
