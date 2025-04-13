@@ -6,16 +6,12 @@ use ControleOnline\Service\DomainService;
 use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
-
 use League\OAuth2\Client\Provider\Facebook;
 
 class FacebookController extends DefaultClientController
 {
-
-
-
     public function __construct(
         protected EntityManagerInterface $manager,
         protected UserService $userService,
@@ -28,25 +24,16 @@ class FacebookController extends DefaultClientController
             'clientId'     => $this->clientId,
             'clientSecret' => $this->clientSecret,
             'redirectUri'  => 'https://' . $this->domainService->getMainDomain() . '/oauth/facebook/return',
-            //'hostedDomain' => 'example.com', // optional; used to restrict access to users on your G Suite/Facebook Apps for Business accounts
         ]);
     }
 
-    /**
-     * Link to this controller to start the "connect" process
-     *
-     * @Route("/oauth/facebook/connect", name="connect_facebook_start")
-     */
+    #[Route('/oauth/facebook/connect', name: 'connect_facebook_start')]
     public function connectAction()
     {
-        return  parent::connectAction();
+        return parent::connectAction();
     }
 
-    /**
-     * Link to this controller to start the "connect" process
-     *
-     * @Route("/oauth/facebook/return", name="connect_facebook_return" , methods={"GET", "POST"})
-     */
+    #[Route('/oauth/facebook/return', name: 'connect_facebook_return', methods: ['GET', 'POST'])]
     public function returnAction(Request $request): JsonResponse
     {
         return parent::returnAction($request);
