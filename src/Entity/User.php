@@ -20,7 +20,7 @@ use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use ControleOnline\Repository\UserRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface; 
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -104,7 +104,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]
     #[ORM\JoinColumn(name: 'people_id', referencedColumnName: 'id', nullable: false)]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private People $people;
 
     public function __construct()
@@ -135,7 +135,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getPassword(): ?string
     {
-        return $this->hash; 
+        return $this->hash;
     }
 
     public function getRoles(): array
