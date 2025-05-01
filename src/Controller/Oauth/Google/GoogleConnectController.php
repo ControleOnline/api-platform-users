@@ -1,7 +1,8 @@
 <?php
 
-namespace ControleOnline\Controller\Oauth;
+namespace ControleOnline\Controller\Oauth\Google;
 
+use ControleOnline\Controller\Oauth\DefaultClientController;
 use ControleOnline\Service\DomainService;
 use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,8 +31,16 @@ class GoogleConnectController extends DefaultClientController
     }
 
     #[Route('/oauth/google/connect', name: 'google_connect', methods: ['GET'])]
-    public function __invoke()
+    public function connectAction()
     {
         return parent::connectAction();
     }
+
+    #[Route('/oauth/google/return', name: 'google_return', methods: ['GET', 'POST'])]
+    public function returnAction(Request $request): JsonResponse
+    {
+        return parent::returnAction($request);
+    }
+
+
 }

@@ -31,7 +31,6 @@ class DefaultClientController extends AbstractController
     {
         try {
 
-
             if ($request->get('code'))
                 $token = $this->provider->getAccessToken('authorization_code', [
                     'code' => $request->get('code')
