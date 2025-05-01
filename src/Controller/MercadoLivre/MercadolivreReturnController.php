@@ -1,6 +1,6 @@
 <?php
 
-namespace ControleOnline\Controller\Oauth;
+namespace ControleOnline\Controller\Oauth\MercadoLivre;
 
 use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 
-class MercadolivreReturnController
+class MercadoLivreReturnController
 {
     public function __construct(
         protected EntityManagerInterface $manager,
