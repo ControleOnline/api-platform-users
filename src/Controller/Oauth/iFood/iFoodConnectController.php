@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class iFoodReturnController extends DefaultClientController
+class iFoodConnectController extends DefaultClientController
 {
     public function __construct(
         protected EntityManagerInterface $manager,

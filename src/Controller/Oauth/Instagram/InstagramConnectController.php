@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use League\OAuth2\Client\Provider\Instagram;
 
-class InstagramController extends DefaultClientController
+class InstagramConnectController extends DefaultClientController
 {
     public function __construct(
         protected EntityManagerInterface $manager,
