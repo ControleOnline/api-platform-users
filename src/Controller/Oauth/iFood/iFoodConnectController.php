@@ -27,7 +27,7 @@ class iFoodConnectController extends DefaultClientController
             'redirectUri'             => 'https://' . $this->domainService->getMainDomain() . '/oauth/ifood/return',
             'urlAuthorize'            => 'https://merchant-api.ifood.com.br/authentication/v1.0/oauth/authorize',
             'urlAccessToken'          => 'https://merchant-api.ifood.com.br/authentication/v1.0/oauth/token',
-            'urlResourceOwnerDetails' => '', // iFood não usa isso
+            'urlResourceOwnerDetails' => '',
             'scopes' => 'merchant order catalog financial review logistics shipping item picking promotion events'
         ]);
     }
