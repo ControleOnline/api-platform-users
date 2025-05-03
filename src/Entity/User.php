@@ -17,7 +17,7 @@ use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
-use ControleOnline\Controller\Oauth\MercadolivreReturnController;
+use ControleOnline\Controller\Oauth\Mercadolivre\MercadolivreReturnController;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use ControleOnline\Repository\UserRepository;
@@ -34,11 +34,6 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new GetCollection(
-            security: 'is_granted(\'PUBLIC_ACCESS\')',
-            uriTemplate: '/oauth/mercadolivre/return',
-            controller: MercadolivreReturnController::class,
-        ),
         new Post(
             uriTemplate: '/users',
             controller: CreateUserAction::class,

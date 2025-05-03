@@ -6,6 +6,7 @@ use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 
 
 class MercadoLivreReturnController
@@ -15,7 +16,10 @@ class MercadoLivreReturnController
         protected UserService $userService
     ) {}
 
-    public function __invoke(Request $request): Response
+
+
+    #[Route('/oauth/mercadolivre/return', name: 'mercadolivre_connect', methods: ['GET'])]
+    public function returnAction(Request $request): Response
     {
         echo $request->get('code');
         echo $request->get('state');
