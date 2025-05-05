@@ -17,7 +17,6 @@ use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
-use ControleOnline\Controller\Oauth\Mercadolivre\MercadolivreReturnController;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use ControleOnline\Repository\UserRepository;
