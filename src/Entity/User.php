@@ -25,7 +25,7 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-#[ORM\EntityListeners([LogListener::class])]
+
 #[ORM\Table(name: 'users')]
 #[ORM\UniqueConstraint(name: 'user_name', columns: ['username'])]
 #[ORM\UniqueConstraint(name: 'api_key', columns: ['api_key'])]
