@@ -110,6 +110,8 @@ class UserService
 
     public function discoveryPeople($mail, $firstName = '', $lastName = '')
     {
+        $people = null;
+
         $email = $this->manager->getRepository(Email::class)
             ->findOneBy([
                 'email' => $mail,
