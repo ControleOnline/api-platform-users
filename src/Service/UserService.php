@@ -83,6 +83,7 @@ class UserService
             'roles' => $user->getRoles(),
             'api_key' => $user->getApiKey(),
             'people' => $user->getPeople()->getId(),
+            'language' => $user->getPeople()->getLanguage()?->getLanguage(),
             'mycompany' => $this->getCompanyId($user),
             'realname' => $this->getUserRealName($user->getPeople()),
             'avatar' => $this->fileService->getFileUrl($user->getPeople()),
