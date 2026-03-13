@@ -72,7 +72,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false)]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['people:read', 'user:read', 'user:write'])]
+    #[Assert\NotBlank(message: 'O e-mail é obrigatório.')]
+    #[Assert\Email(message: 'O valor "{{ value }}" não é um e-mail válido.')]
     private string $username = '';
 
     #[ORM\Column(type: 'string', length: 255, nullable: false)]
