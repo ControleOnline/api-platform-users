@@ -9,6 +9,7 @@ use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class UserService
 {
@@ -30,6 +31,16 @@ class UserService
         $this->manager->persist($user);
         $this->manager->flush();
         return $user;
+    }
+
+    public function changePasswordFromContent(User $user, ?string $content)
+    {
+        $payload = $this->decodePayload($content);
+        if (!isset($payload['password'])) {
+            throw new BadRequestHttpException('password is required');
+        }
+
+        return $this->changePassword($user, $payload['password']);
     }
 
     public function changeApiKey(User $user)
@@ -165,6 +176,77 @@ class UserService
         return $user;
     }
 
+    public function createUserFromContent(?string $content)
+    {
+        $payload = $this->decodePayload($content);
+
+        if (
+            !isset($payload['people']) ||
+            !isset($payload['username']) ||
+            !isset($payload['password'])
+        ) {
+            throw new BadRequestHttpException('people, username and password are required');
+        }
+
+        $people = $this->manager->getRepository(People::class)->find($payload['people']);
+        if (!$people instanceof People) {
+            throw new BadRequestHttpException('people not found');
+        }
+
+        return $this->createUser(
+            $people,
+            $payload['username'],
+            $payload['password']
+        );
+    }
+
+    public function deleteUser(People $person, int $userId): bool
+    {
+        try {
+            $this->manager->getConnection()->beginTransaction();
+
+            if ($userId <= 0) {
+                throw new \InvalidArgumentException('Document id is not defined');
+            }
+
+            $users = $this->manager->getRepository(User::class)->findBy(['people' => $person]);
+            if (count($users) === 1) {
+                throw new \InvalidArgumentException('Deve existir pelo menos um usuário');
+            }
+
+            $user = $this->manager->getRepository(User::class)->findOneBy([
+                'id' => $userId,
+                'people' => $person,
+            ]);
+
+            if (!$user instanceof User) {
+                throw new \InvalidArgumentException('Person user was not found');
+            }
+
+            $this->manager->remove($user);
+            $this->manager->flush();
+            $this->manager->getConnection()->commit();
+
+            return true;
+        } catch (\Exception $e) {
+            if ($this->manager->getConnection()->isTransactionActive()) {
+                $this->manager->getConnection()->rollBack();
+            }
+
+            throw new \InvalidArgumentException($e->getMessage(), 0, $e);
+        }
+    }
+
+    public function deleteUserFromContent(People $person, ?string $content): bool
+    {
+        $payload = $this->decodePayload($content);
+
+        return $this->deleteUser(
+            $person,
+            (int) ($payload['id'] ?? 0)
+        );
+    }
+
     public function getCompany(User $user)
     {
         $peopleLink = $user->getPeople()->getLink()->first();
@@ -186,5 +268,16 @@ class UserService
     private function getPermission()
     {
         return true;
+    }
+
+    private function decodePayload(?string $content): array
+    {
+        if (!is_string($content) || trim($content) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($content, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 }

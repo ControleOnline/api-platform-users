@@ -2,7 +2,6 @@
 
 namespace ControleOnline\Controller;
 
-use Doctrine\ORM\EntityManagerInterface;
 use ControleOnline\Service\HydratorService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,7 +12,6 @@ class ChangePasswordAction
 {
 
   public function __construct(
-    private EntityManagerInterface $manager,
     private UserService $service,
     private HydratorService $hydratorService
 
@@ -23,9 +21,10 @@ class ChangePasswordAction
   {
 
     try {
-      $payload   = json_decode($request->getContent());
-
-      $user = $this->service->changePassword($data, $payload->password);
+      $user = $this->service->changePasswordFromContent(
+        $data,
+        $request->getContent()
+      );
 
       return new JsonResponse(
         $this->hydratorService->item(
