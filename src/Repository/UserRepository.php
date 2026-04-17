@@ -4,8 +4,8 @@ namespace ControleOnline\Repository;
 
 use ControleOnline\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\NonUniqueResultException;
 use Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface;
-use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -61,5 +61,31 @@ class UserRepository extends ServiceEntityRepository implements UserLoaderInterf
             ->where('u.username  = :username')
             ->setParameter('username', $username)
             ->getQuery()->getOneOrNullResult();
+    }
+
+    public function findOneForPasswordRecovery(string $login): ?User
+    {
+        $normalizedLogin = mb_strtolower(trim($login));
+
+        try {
+            return $this->createQueryBuilder('u')
+                ->innerJoin('u.people', 'p')
+                ->leftJoin('p.email', 'e')
+                ->andWhere('LOWER(u.username) = :login OR LOWER(e.email) = :login')
+                ->andWhere('p.enable = true')
+                ->setParameter('login', $normalizedLogin)
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+        } catch (NonUniqueResultException) {
+            return null;
+        }
+    }
+
+    public function findOneByLostPassword(string $token): ?User
+    {
+        return $this->findOneBy([
+            'lostPassword' => trim($token),
+        ]);
     }
 }
