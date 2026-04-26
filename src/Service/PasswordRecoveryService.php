@@ -78,16 +78,34 @@ class PasswordRecoveryService
         $login = $this->normalizeEmail($payload->username ?? '');
         $email = $this->normalizeEmail($payload->email ?? '');
 
-        if ($login === '' || $email === '') {
+        if ($login === '' && $email === '') {
             return null;
         }
 
-        $user = $this->manager->getRepository(User::class)->findOneBy([
-            'username' => $login,
+        $userRepository = $this->manager->getRepository(User::class);
+
+        if ($login !== '') {
+            $user = $userRepository->findOneBy([
+                'username' => $login,
+            ]);
+
+            if ($user instanceof User) {
+                if ($email === '' || $this->matchesUserEmail($user, $email)) {
+                    return $user;
+                }
+            }
+        }
+
+        if ($email === '') {
+            return null;
+        }
+
+        $user = $userRepository->findOneBy([
+            'username' => $email,
         ]);
 
         if ($user instanceof User) {
-            return $this->matchesUserEmail($user, $email) ? $user : null;
+            return $user;
         }
 
         $emailEntity = $this->manager->getRepository(Email::class)->findOneBy([
@@ -103,10 +121,6 @@ class PasswordRecoveryService
         ]);
 
         if (!$user instanceof User) {
-            return null;
-        }
-
-        if ($this->normalizeEmail($user->getUsername()) !== $login) {
             return null;
         }
 
@@ -144,8 +158,13 @@ class PasswordRecoveryService
             return true;
         }
 
-        $peopleEmail = $user->getPeople()->getOneEmail()?->getEmail();
-        return $this->normalizeEmail($peopleEmail ?? '') === $email;
+        foreach ($user->getPeople()->getEmail() as $peopleEmail) {
+            if ($this->normalizeEmail($peopleEmail->getEmail()) === $email) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeEmail(string $value): string
