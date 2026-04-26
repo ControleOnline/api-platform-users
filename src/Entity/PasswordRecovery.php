@@ -2,18 +2,24 @@
 
 namespace ControleOnline\Entity;
 
-use Symfony\Component\Serializer\Attribute\Groups; 
-
-
-use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\ApiProperty;
-use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\Post;
+use ControleOnline\Controller\RequestPasswordRecoveryAction;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- */
-#[ApiResource(operations: [new Post(status: 202)], formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']], security: 'is_granted(\'PUBLIC_ACCESS\')', messenger: true)]
+#[ApiResource(
+    operations: [
+        new Post(
+            uriTemplate: '/password_recoveries',
+            controller: RequestPasswordRecoveryAction::class,
+            security: 'is_granted(\'PUBLIC_ACCESS\')',
+            read: false,
+            output: false,
+            status: 202
+        ),
+    ],
+    formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']]
+)]
 final class PasswordRecovery
 {
     /**
