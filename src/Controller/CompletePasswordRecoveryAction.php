@@ -2,10 +2,10 @@
 
 namespace ControleOnline\Controller;
 
-use ControleOnline\Entity\RecoveryAccess;
 use ControleOnline\Service\HydratorService;
 use ControleOnline\Service\PasswordRecoveryService;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 
 class CompletePasswordRecoveryAction
 {
@@ -14,10 +14,12 @@ class CompletePasswordRecoveryAction
         private HydratorService $hydratorService
     ) {}
 
-    public function __invoke(RecoveryAccess $data): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
         try {
-            $this->passwordRecoveryService->completeRecovery($data);
+            $this->passwordRecoveryService->completeRecoveryFromContent(
+                $request->getContent()
+            );
 
             return new JsonResponse([
                 'success' => true,

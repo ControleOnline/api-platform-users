@@ -9,6 +9,7 @@ use ControleOnline\Entity\RecoveryAccess;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class PasswordRecoveryService
 {
@@ -16,8 +17,19 @@ class PasswordRecoveryService
         private EntityManagerInterface $manager,
         private EmailService $emailService,
         private UserService $userService,
-        private DomainService $domainService
+        private DomainService $domainService,
+        private ?ValidatorInterface $validator = null
     ) {}
+
+    public function requestRecoveryFromContent(?string $content): void
+    {
+        $payload = $this->createPasswordRecoveryPayload(
+            $this->decodePayload($content)
+        );
+        $this->validatePayload($payload);
+
+        $this->requestRecovery($payload);
+    }
 
     public function requestRecovery(PasswordRecovery $payload): void
     {
@@ -47,6 +59,16 @@ class PasswordRecoveryService
             'Recuperacao de senha',
             $this->buildRecoveryEmail($user, $hash, $lost)
         );
+    }
+
+    public function completeRecoveryFromContent(?string $content): void
+    {
+        $payload = $this->createRecoveryAccessPayload(
+            $this->decodePayload($content)
+        );
+        $this->validatePayload($payload);
+
+        $this->completeRecovery($payload);
     }
 
     public function completeRecovery(RecoveryAccess $payload): void
@@ -116,15 +138,11 @@ class PasswordRecoveryService
             return null;
         }
 
-        $user = $this->manager->getRepository(User::class)->findOneBy([
-            'people' => $emailEntity->getPeople(),
-        ]);
-
-        if (!$user instanceof User) {
-            return null;
-        }
-
-        return $user;
+        return $this->resolveUserFromPeople(
+            $emailEntity->getPeople(),
+            $login,
+            $email
+        );
     }
 
     private function resolveRecipientEmail(
@@ -170,6 +188,103 @@ class PasswordRecoveryService
     private function normalizeEmail(string $value): string
     {
         return strtolower(trim($value));
+    }
+
+    private function createPasswordRecoveryPayload(array $payload): PasswordRecovery
+    {
+        $recovery = new PasswordRecovery();
+        $recovery->username = $this->extractString(
+            $payload,
+            ['username', 'login', 'user', 'email']
+        );
+        $recovery->email = $this->extractString(
+            $payload,
+            ['email', 'username', 'login']
+        );
+
+        return $recovery;
+    }
+
+    private function createRecoveryAccessPayload(array $payload): RecoveryAccess
+    {
+        $recovery = new RecoveryAccess();
+        $recovery->hash = $this->extractString($payload, ['hash']);
+        $recovery->lost = $this->extractString($payload, ['lost']);
+        $recovery->password = $this->extractString($payload, ['password']);
+        $recovery->confirm = $this->extractString(
+            $payload,
+            ['confirm', 'passwordConfirmation', 'confirmPassword']
+        );
+
+        return $recovery;
+    }
+
+    private function decodePayload(?string $content): array
+    {
+        $content = trim((string) $content);
+        if ($content === '') {
+            return [];
+        }
+
+        $decoded = json_decode($content, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function extractString(array $payload, array $keys): string
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $payload)) {
+                continue;
+            }
+
+            $value = $payload[$key];
+            if (is_scalar($value)) {
+                return trim((string) $value);
+            }
+        }
+
+        return '';
+    }
+
+    private function validatePayload(object $payload): void
+    {
+        if (!$this->validator instanceof ValidatorInterface) {
+            return;
+        }
+
+        $violations = $this->validator->validate($payload);
+        if (count($violations) === 0) {
+            return;
+        }
+
+        throw new Exception((string) $violations[0]->getMessage());
+    }
+
+    private function resolveUserFromPeople(
+        mixed $people,
+        string $login = '',
+        string $email = ''
+    ): ?User {
+        $users = $this->manager->getRepository(User::class)->findBy([
+            'people' => $people,
+        ]);
+
+        foreach ($users as $user) {
+            if (
+                $login !== '' &&
+                $this->normalizeEmail($user->getUsername()) === $login
+            ) {
+                return $user;
+            }
+        }
+
+        foreach ($users as $user) {
+            if ($email !== '' && $this->matchesUserEmail($user, $email)) {
+                return $user;
+            }
+        }
+
+        return $users[0] ?? null;
     }
 
     private function buildRecoveryEmail(User $user, string $hash, string $lost): string

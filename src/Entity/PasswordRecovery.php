@@ -13,6 +13,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/password_recoveries',
             controller: RequestPasswordRecoveryAction::class,
             security: 'is_granted(\'PUBLIC_ACCESS\')',
+            deserialize: false,
             read: false,
             output: false,
             status: 202
