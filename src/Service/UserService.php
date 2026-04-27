@@ -91,6 +91,9 @@ class UserService
         return [
             'id' => $user->getPeople()->getId(),
             'username' => $user->getUsername(),
+            'name' => $user->getPeople()->getName(),
+            'alias' => $user->getPeople()->getAlias(),
+            'nickname' => $user->getPeople()->getAlias(),
             'roles' => $user->getRoles(),
             'api_key' => $user->getApiKey(),
             'people' => $user->getPeople()->getId(),
