@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
+use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
@@ -36,6 +37,12 @@ use Doctrine\ORM\Mapping as ORM;
             uriTemplate: '/users',
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            uriTemplate: '/users/create-account',
+            controller: CreateAccountAction::class,
+            securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
+            security: 'is_granted(\'PUBLIC_ACCESS\')',
         ),
         new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
         new Put(
