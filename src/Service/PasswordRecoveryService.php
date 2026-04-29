@@ -44,8 +44,11 @@ class PasswordRecoveryService
             return;
         }
 
+        $temporaryPassword = $this->generateTemporaryPassword();
         $hash = bin2hex(random_bytes(20));
         $lost = bin2hex(random_bytes(24));
+
+        $this->userService->changePassword($user, $temporaryPassword);
 
         $user
             ->setOauthHash($hash)
@@ -57,7 +60,7 @@ class PasswordRecoveryService
         $this->emailService->sendMessage(
             $recipient,
             'Recuperacao de senha',
-            $this->buildRecoveryEmail($user, $hash, $lost)
+            $this->buildRecoveryEmail($user, $hash, $lost, $temporaryPassword)
         );
     }
 
@@ -287,7 +290,12 @@ class PasswordRecoveryService
         return $users[0] ?? null;
     }
 
-    private function buildRecoveryEmail(User $user, string $hash, string $lost): string
+    private function buildRecoveryEmail(
+        User $user,
+        string $hash,
+        string $lost,
+        string $temporaryPassword
+    ): string
     {
         $name = htmlspecialchars(
             $user->getPeople()->getFullName() ?: $user->getUsername(),
@@ -300,20 +308,41 @@ class PasswordRecoveryService
             ENT_QUOTES,
             'UTF-8'
         );
+        $safeTemporaryPassword = htmlspecialchars(
+            $temporaryPassword,
+            ENT_QUOTES,
+            'UTF-8'
+        );
 
         return sprintf(
             '<div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
                 <h2 style="margin-bottom: 12px;">Recuperacao de senha</h2>
                 <p>Ola, %s.</p>
                 <p>Recebemos uma solicitacao para redefinir a sua senha.</p>
-                <p>Use o link temporario abaixo para cadastrar uma nova senha:</p>
+                <p>Geramos uma senha temporaria para voce entrar no sistema imediatamente:</p>
+                <p style="font-size: 18px; font-weight: bold; letter-spacing: 0.4px;">%s</p>
+                <p>Se preferir, voce tambem pode usar o link temporario abaixo para cadastrar uma nova senha:</p>
                 <p><a href="%s">%s</a></p>
                 <p>Se voce nao solicitou a recuperacao, basta ignorar este e-mail.</p>
             </div>',
             $name,
+            $safeTemporaryPassword,
             $link,
             $link
         );
+    }
+
+    private function generateTemporaryPassword(int $length = 10): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        $maxIndex = strlen($alphabet) - 1;
+        $password = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $password .= $alphabet[random_int(0, $maxIndex)];
+        }
+
+        return $password;
     }
 
     private function buildRecoveryUrl(string $hash, string $lost): string
