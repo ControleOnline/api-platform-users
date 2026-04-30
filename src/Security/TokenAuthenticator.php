@@ -3,6 +3,7 @@
 namespace ControleOnline\Security;
 
 use ControleOnline\Entity\User;
+use ControleOnline\Service\PeopleRoleService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,12 +20,10 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 
 class TokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    private $em;
-
-    public function __construct(EntityManagerInterface $em)
-    {
-        $this->em = $em;
-    }
+    public function __construct(
+        private EntityManagerInterface $em,
+        private PeopleRoleService $peopleRoleService,
+    ) {}
 
     public function supports(Request $request): ?bool
     {
@@ -43,6 +42,9 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
                 $user = $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
                 if (null === $user)
                     throw new CustomUserMessageAuthenticationException('Invalid API token');
+                $user->setResolvedRoles(
+                    $this->peopleRoleService->getGrantedRoles($user->getPeople())
+                );
                 return $user;
             }),
             new CustomCredentials(

@@ -35,18 +35,18 @@ use Doctrine\ORM\Mapping as ORM;
         new Post(
             uriTemplate: '/users',
             controller: CreateUserAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
-        new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
+        new Delete(security: 'is_granted(\'ROLE_HUMAN\')'),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Post(
             uriTemplate: '/token',
@@ -55,8 +55,8 @@ use Doctrine\ORM\Mapping as ORM;
             security: 'is_granted(\'PUBLIC_ACCESS\')',
 
         ),
-        new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
-        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+        new Get(security: 'is_granted(\'ROLE_HUMAN\')'),
+        new GetCollection(security: 'is_granted(\'ROLE_HUMAN\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
     normalizationContext: ['groups' => ['user:read']],
@@ -65,6 +65,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    private array $resolvedRoles = [];
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
@@ -131,7 +133,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getRoles(): array
     {
-        return ['ROLE_CLIENT'];
+        return array_values(array_unique($this->resolvedRoles));
+    }
+
+    public function setResolvedRoles(array $roles): self
+    {
+        $this->resolvedRoles = array_values(array_unique(array_filter($roles)));
+
+        return $this;
     }
 
     public function getSalt(): ?string

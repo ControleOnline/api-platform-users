@@ -43,9 +43,17 @@ security:
                 authenticators:
                     - App\Security\TokenAuthenticator
     role_hierarchy:
-        ROLE_ADMIN : ROLE_ADMIN
-        ROLE_ADMIN : ROLE_CLIENT
+        ROLE_SUPER: ROLE_SUPER
+        ROLE_OWNER: ROLE_OWNER
+        ROLE_DIRECTOR: ROLE_DIRECTOR
+        ROLE_MANAGER: ROLE_MANAGER
+        ROLE_SALESMAN: ROLE_SALESMAN
+        ROLE_AFTER_SALES: ROLE_AFTER_SALES
+        ROLE_EMPLOYEE: ROLE_EMPLOYEE
         ROLE_CLIENT: ROLE_CLIENT
+        ROLE_PROVIDER: ROLE_PROVIDER
+        ROLE_FRANCHISEE: ROLE_FRANCHISEE
+        ROLE_HUMAN: ROLE_HUMAN
 
     access_control:
         - { path: ^/my_contracts/signatures-finished, roles: PUBLIC_ACCESS, requires_channel: https }
