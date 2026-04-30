@@ -6,6 +6,7 @@ use ControleOnline\Service\UserService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class CreateAccountAction
 {
@@ -49,10 +50,11 @@ class CreateAccountAction
                 'response' => [
                     'data' => $user,
                     'count' => 1,
+                    'error' => '',
                     'success' => true,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return new JsonResponse([
                 'response' => [
                     'data' => [],
@@ -60,7 +62,7 @@ class CreateAccountAction
                     'error' => $e->getMessage(),
                     'success' => false,
                 ],
-            ], 500);
+            ], $this->resolveStatusCode($e));
         }
     }
 
@@ -71,6 +73,10 @@ class CreateAccountAction
         }
 
         $decoded = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new BadRequestHttpException('invalid json payload');
+        }
 
         return is_array($decoded) ? $decoded : [];
     }
@@ -86,5 +92,18 @@ class CreateAccountAction
         $parts = explode(' ', $name, 2);
 
         return [$parts[0], $parts[1] ?? ''];
+    }
+
+    private function resolveStatusCode(\Throwable $exception): int
+    {
+        if ($exception instanceof HttpExceptionInterface) {
+            return $exception->getStatusCode();
+        }
+
+        if ($exception->getCode() >= 300 && $exception->getCode() < 500) {
+            return 400;
+        }
+
+        return 500;
     }
 }
