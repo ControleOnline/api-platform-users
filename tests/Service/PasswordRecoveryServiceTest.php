@@ -104,9 +104,9 @@ class PasswordRecoveryServiceTest extends TestCase
         self::assertStringContainsString($passwordChanges[0][1], $emails[0]['body']);
         self::assertStringContainsString(
             sprintf(
-                'https://admin.controleonline.com/reset-password?hash=%s&lost=%s',
-                rawurlencode((string) $user->getOauthHash()),
-                rawurlencode((string) $user->getLostPassword())
+                'https://admin.controleonline.com/reset-password?hash=%s&amp;lost=%s',
+                htmlspecialchars((string) $user->getOauthHash(), ENT_QUOTES, 'UTF-8'),
+                htmlspecialchars((string) $user->getLostPassword(), ENT_QUOTES, 'UTF-8')
             ),
             $emails[0]['body']
         );
