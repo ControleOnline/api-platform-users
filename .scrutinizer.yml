@@ -1,11 +1,8 @@
 build:
-  nodes:
-    analysis:
-      project_setup:
-        override:
-          - composer install --no-interaction --prefer-dist
+  dependencies:
+    override:
+      - composer install --no-interaction --prefer-dist
 
-      tests:
-        override:
-          -
-            command: vendor/bin/phpunit
+  tests:
+    override:
+      - vendor/bin/phpunit
