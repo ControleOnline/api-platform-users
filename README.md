@@ -75,3 +75,17 @@ class TokenAuthenticator extends SecurityTokenAuthenticator
     
 }
 ```
+
+## Password recovery flow
+
+The public password recovery request no longer changes the user password immediately.
+
+Current behavior:
+- the initial request generates temporary recovery tokens and sends the recovery e-mail
+- recovery tokens expire after 15 minutes
+- the password only changes when the recovery flow is completed with a valid, non-expired token
+- expired or successfully used recovery tokens are cleared after completion
+
+Validation:
+- focused PHPUnit coverage lives in `tests/Service/PasswordRecoveryServiceTest.php`
+- the branch workflow `Pull Request Checks` is the canonical automated evidence for this flow in review branches
