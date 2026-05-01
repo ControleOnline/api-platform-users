@@ -5,26 +5,35 @@ namespace ControleOnline\Service;
 use ControleOnline\Entity\Email;
 use ControleOnline\Entity\Language;
 use ControleOnline\Entity\People;
+use ControleOnline\Entity\PeopleLink;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Exception;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface as Security;
 
 class UserService
 {
+    private $request;
+
     public function __construct(
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
         private FileService $fileService,
+        private Security $security,
         private PeopleRoleService $peopleRoleService,
-    ) {}
+        private RequestStack $requestStack,
+    ) {
+        $this->request = $requestStack->getCurrentRequest();
+    }
 
     public function changePassword(User $user, $password)
     {
-        if (!$this->getPermission()) {
-            throw new Exception("You should not pass!!!", 301);
-        }
+        $this->denyUnlessCanManagePeople($user->getPeople());
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
         $user->setHash($hashedPassword);
@@ -46,9 +55,7 @@ class UserService
 
     public function changeApiKey(User $user)
     {
-        if (!$this->getPermission()) {
-            throw new Exception("You should not pass!!!", 301);
-        }
+        $this->denyUnlessCanManagePeople($user->getPeople());
 
         $user->generateApiKey();
 
@@ -160,9 +167,7 @@ class UserService
 
     public function createUser(People $people, $username, $password)
     {
-        if (!$this->getPermission()) {
-            throw new Exception("You should not pass!!!", 301);
-        }
+        $this->denyUnlessCanManagePeople($people);
 
         $user = $this->manager->getRepository(User::class)
             ->findOneBy([
@@ -209,6 +214,8 @@ class UserService
 
     public function deleteUser(People $person, int $userId): bool
     {
+        $this->denyUnlessCanManagePeople($person);
+
         try {
             $this->manager->getConnection()->beginTransaction();
 
@@ -269,12 +276,125 @@ class UserService
         return $company ? $company->getId() : null;
     }
 
-    /**
-     * @todo arrumar
-     */
-    private function getPermission()
+    public function securityFilter(QueryBuilder $queryBuilder, $resourceClass = null, $applyTo = null, $rootAlias = null): void
     {
-        return true;
+        $myPeople = $this->getMyPeople();
+        $myCompanyIds = array_map(
+            static fn(People $company): int => (int) $company->getId(),
+            $this->getMyCompanies()
+        );
+
+        if (!$myPeople instanceof People && $myCompanyIds === []) {
+            $queryBuilder->andWhere('1 = 0');
+            return;
+        }
+
+        $peopleAlias = 'user_people';
+        if (!in_array($peopleAlias, $queryBuilder->getAllAliases(), true)) {
+            $queryBuilder->innerJoin(sprintf('%s.people', $rootAlias), $peopleAlias);
+        }
+
+        $peopleLinkAlias = 'user_people_link';
+        if (!in_array($peopleLinkAlias, $queryBuilder->getAllAliases(), true)) {
+            $queryBuilder->leftJoin(
+                PeopleLink::class,
+                $peopleLinkAlias,
+                'WITH',
+                sprintf('%s.people = %s.id', $peopleLinkAlias, $peopleAlias)
+            );
+        }
+
+        $visibilityConditions = [];
+        if ($myPeople instanceof People) {
+            $visibilityConditions[] = sprintf('%s.id = :myPeopleId', $peopleAlias);
+            $queryBuilder->setParameter('myPeopleId', (int) $myPeople->getId());
+        }
+
+        if ($myCompanyIds !== []) {
+            $visibilityConditions[] = sprintf('%s.company IN(:myCompanies)', $peopleLinkAlias);
+            $queryBuilder->setParameter('myCompanies', $myCompanyIds);
+        }
+
+        if ($visibilityConditions === []) {
+            $queryBuilder->andWhere('1 = 0');
+            return;
+        }
+
+        $queryBuilder->andWhere($queryBuilder->expr()->orX(...$visibilityConditions));
+    }
+
+    public function getMyPeople(): ?People
+    {
+        $token = $this->security->getToken();
+        if (!$token) {
+            return null;
+        }
+
+        $currentUser = $token->getUser();
+        if (!is_object($currentUser) || !method_exists($currentUser, 'getPeople')) {
+            return null;
+        }
+
+        return $currentUser->getPeople();
+    }
+
+    public function getMyCompanies(): array
+    {
+        return $this->peopleRoleService->getAccessibleCompaniesForPeople(
+            $this->getMyPeople(),
+            PeopleLink::EMPLOYEE_LINK
+        );
+    }
+
+    private function denyUnlessCanManagePeople(People $people): void
+    {
+        if ($this->canManagePeople($people)) {
+            return;
+        }
+
+        throw new AccessDeniedHttpException('You should not pass!!!');
+    }
+
+    private function canManagePeople(People $people): bool
+    {
+        $myPeople = $this->getMyPeople();
+        if (!$myPeople instanceof People) {
+            return false;
+        }
+
+        $targetCompanyIds = $this->getCompanyIdsForPeople($people);
+        if ($targetCompanyIds === []) {
+            return false;
+        }
+
+        $myCompanyIds = array_map(
+            static fn(People $company): int => (int) $company->getId(),
+            $this->getMyCompanies()
+        );
+
+        if ($myCompanyIds === []) {
+            return false;
+        }
+
+        return array_intersect($myCompanyIds, $targetCompanyIds) !== [];
+    }
+
+    private function getCompanyIdsForPeople(People $people): array
+    {
+        $companyIds = [];
+
+        foreach ($people->getLink() as $link) {
+            if (!$link instanceof PeopleLink) {
+                continue;
+            }
+
+            $company = $link->getCompany();
+            if ($company instanceof People) {
+                $companyIds[] = (int) $company->getId();
+            }
+        }
+
+        return array_values(array_unique(array_filter($companyIds)));
     }
 
     private function decodePayload(?string $content): array

@@ -1,0 +1,12 @@
+build:
+  dependencies:
+    override:
+      - composer install --no-interaction --prefer-dist
+
+  project_setup:
+    override:
+      - true
+
+  tests:
+    override:
+      - vendor/bin/phpunit
