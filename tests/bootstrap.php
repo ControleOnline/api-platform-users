@@ -90,6 +90,7 @@ namespace ControleOnline\Entity {
     class PeopleLink
     {
         public const EMPLOYEE_LINK = ['employee'];
+        public const MANAGER_LINK = ['owner', 'director', 'manager'];
 
         public function __construct(private ?People $company = null)
         {
@@ -278,6 +279,8 @@ namespace ControleOnline\Entity {
 }
 
 namespace ControleOnline\Service {
+    use ControleOnline\Entity\PeopleLink;
+
     class FileService
     {
         public function getFileUrl($people): string
@@ -288,7 +291,7 @@ namespace ControleOnline\Service {
 
     class PeopleRoleService
     {
-        public function __construct(private array $companies = [])
+        public function __construct(private array $companiesByRoleType = [])
         {
         }
 
@@ -299,7 +302,15 @@ namespace ControleOnline\Service {
 
         public function getAccessibleCompaniesForPeople($people, $companyType = null): array
         {
-            return $this->companies;
+            if ($companyType === PeopleLink::MANAGER_LINK) {
+                return $this->companiesByRoleType['manager'] ?? [];
+            }
+
+            if ($companyType === PeopleLink::EMPLOYEE_LINK) {
+                return $this->companiesByRoleType['employee'] ?? [];
+            }
+
+            return $this->companiesByRoleType['default'] ?? [];
         }
     }
 }
