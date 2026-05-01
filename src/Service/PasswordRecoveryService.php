@@ -13,6 +13,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class PasswordRecoveryService
 {
+    private const RECOVERY_TTL_SECONDS = 900;
+
     public function __construct(
         private EntityManagerInterface $manager,
         private EmailService $emailService,
@@ -45,7 +47,7 @@ class PasswordRecoveryService
         }
 
         $hash = bin2hex(random_bytes(20));
-        $lost = bin2hex(random_bytes(24));
+        $lost = $this->generateRecoveryLostToken();
 
         $user
             ->setOauthHash($hash)
@@ -85,14 +87,14 @@ class PasswordRecoveryService
             throw new Exception('Solicitacao de recuperacao invalida ou expirada.');
         }
 
+        if ($this->isRecoveryLostTokenExpired($lost)) {
+            $this->clearRecoveryState($user);
+
+            throw new Exception('Solicitacao de recuperacao invalida ou expirada.');
+        }
+
         $this->userService->changePassword($user, (string) $payload->password);
-
-        $user
-            ->setOauthHash(null)
-            ->setLostPassword(null);
-
-        $this->manager->persist($user);
-        $this->manager->flush();
+        $this->clearRecoveryState($user);
     }
 
     private function findUserForRecovery(PasswordRecovery $payload): ?User
@@ -287,7 +289,11 @@ class PasswordRecoveryService
         return $users[0] ?? null;
     }
 
-    private function buildRecoveryEmail(User $user, string $hash, string $lost): string
+    private function buildRecoveryEmail(
+        User $user,
+        string $hash,
+        string $lost
+    ): string
     {
         $name = htmlspecialchars(
             $user->getPeople()->getFullName() ?: $user->getUsername(),
@@ -306,7 +312,8 @@ class PasswordRecoveryService
                 <h2 style="margin-bottom: 12px;">Recuperacao de senha</h2>
                 <p>Ola, %s.</p>
                 <p>Recebemos uma solicitacao para redefinir a sua senha.</p>
-                <p>Use o link temporario abaixo para cadastrar uma nova senha:</p>
+                <p>Use o link temporario abaixo para cadastrar uma nova senha.</p>
+                <p>Esse acesso expira em 15 minutos.</p>
                 <p><a href="%s">%s</a></p>
                 <p>Se voce nao solicitou a recuperacao, basta ignorar este e-mail.</p>
             </div>',
@@ -314,6 +321,35 @@ class PasswordRecoveryService
             $link,
             $link
         );
+    }
+
+    private function generateRecoveryLostToken(): string
+    {
+        return sprintf(
+            '%d.%s',
+            time() + self::RECOVERY_TTL_SECONDS,
+            bin2hex(random_bytes(16))
+        );
+    }
+
+    private function isRecoveryLostTokenExpired(string $lost): bool
+    {
+        [$expiresAt] = explode('.', $lost, 2) + [null];
+        if (!is_string($expiresAt) || !ctype_digit($expiresAt)) {
+            return true;
+        }
+
+        return (int) $expiresAt < time();
+    }
+
+    private function clearRecoveryState(User $user): void
+    {
+        $user
+            ->setOauthHash(null)
+            ->setLostPassword(null);
+
+        $this->manager->persist($user);
+        $this->manager->flush();
     }
 
     private function buildRecoveryUrl(string $hash, string $lost): string
