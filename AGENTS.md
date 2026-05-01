@@ -23,6 +23,10 @@
 - Criar usuario para uma `people`, trocar senha, renovar `apiKey` ou remover usuario so e permitido para operador autorizado sobre a `people` alvo. Receber `people` ou `user id` do cliente nunca e suficiente por si so.
 - Fluxo de autoatendimento pode permitir troca de senha do proprio usuario autenticado, mas isso deve ser separado do fluxo administrativo e continuar restrito ao proprio titular.
 - A exposicao de `apiKey` em resposta de leitura exige a mesma autorizacao forte do fluxo de renovacao; nao pode ficar acessivel a qualquer `ROLE_HUMAN`.
+- Para a entidade `User`, "operador administrativo autorizado" significa apenas vinculos humanos administrativos da empresa alvo: `owner`, `director` ou `manager` (`PeopleLink::MANAGER_LINK`).
+- Vinculos humanos nao administrativos, como `employee`, `salesman` e `after-sales`, nao podem ganhar leitura de colecao, leitura de outro usuario, criacao, exclusao, troca de senha nem renovacao de `apiKey` de terceiros apenas por compartilharem a mesma empresa.
+- O proprio usuario autenticado pode ler apenas o proprio registro; qualquer leitura transversal dentro da empresa exige perfil administrativo.
+- Se existir fluxo de autoatendimento para senha ou `apiKey`, ele deve operar somente sobre o proprio usuario autenticado e nao pode reaproveitar o mesmo criterio administrativo usado para gerir usuarios de terceiros.
 
 ## Limites
 - Dados cadastrais de pessoa e empresa pertencem a `people`.

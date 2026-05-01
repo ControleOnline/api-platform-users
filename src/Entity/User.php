@@ -16,6 +16,7 @@ use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateUserAction;
+use ControleOnline\Controller\DeleteUserAction;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use ControleOnline\Repository\UserRepository;
@@ -37,7 +38,11 @@ use Doctrine\ORM\Mapping as ORM;
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
-        new Delete(security: 'is_granted(\'ROLE_HUMAN\')'),
+        new Delete(
+            uriTemplate: '/users/{id}',
+            controller: DeleteUserAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
+        ),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
@@ -70,11 +75,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false)]
-    #[Groups(['people:read', 'user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write'])]
     #[Assert\NotBlank(message: 'O e-mail é obrigatório.')]
     #[Assert\Email(message: 'O valor "{{ value }}" não é um e-mail válido.')]
     private string $username = '';
@@ -92,7 +97,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $lostPassword = null;
 
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private string $apiKey = '';
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]

@@ -15,5 +15,8 @@
             "email": "luiz.kim@controleonline.com"
         }
     ],
-    "require": {}
+    "require": {},
+    "require-dev": {
+        "phpunit/phpunit": "^12.1"
+    }
 }

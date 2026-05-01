@@ -89,3 +89,17 @@ Current behavior:
 Validation:
 - focused PHPUnit coverage lives in `tests/Service/PasswordRecoveryServiceTest.php`
 - the branch workflow `Pull Request Checks` is the canonical automated evidence for this flow in review branches
+
+## User management scope
+
+The user-management flow used by the manager area now keeps all sensitive operations on the same guarded service path.
+
+Current behavior:
+- direct user reads and management stay restricted by `UserService::securityFilter`
+- cross-person management is limited to `owner`, `director`, and `manager`
+- disabled `people_link` rows and disabled companies no longer authorize reads, deletes, password changes, or API key rotation
+- `DELETE /users/{id}` now follows the same guarded `UserService` path used by create, password-change, and API-key rotation flows
+
+Validation:
+- focused coverage lives in `tests/Service/UserServiceTest.php`, `tests/Controller/DeleteUserActionTest.php`, and `tests/Entity/UserSerializationGroupsTest.php`
+- the branch workflow `Pull Request Checks` is the canonical automated evidence for this flow in review branches

@@ -3,36 +3,29 @@
 namespace ControleOnline\Controller;
 
 use ControleOnline\Entity\User;
-use ControleOnline\Service\HydratorService;
 use ControleOnline\Service\UserService;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
-class ChangePasswordAction
+class DeleteUserAction
 {
-    public function __construct(
-        private UserService $service,
-        private HydratorService $hydratorService
-
-    ) {
+    public function __construct(private UserService $service)
+    {
     }
 
-    public function __invoke(User $data, Request $request)
+    public function __invoke(User $data)
     {
         try {
-            $user = $this->service->changePasswordFromContent(
-                $data,
-                $request->getContent()
-            );
+            $this->service->deleteUser($data->getPeople(), (int) $data->getId());
 
-            return new JsonResponse(
-                $this->hydratorService->item(
-                    User::class,
-                    $user->getId(),
-                    "user:read"
-                )
-            );
+            return new JsonResponse([
+                'response' => [
+                    'data' => [],
+                    'count' => 0,
+                    'error' => null,
+                    'success' => true,
+                ],
+            ]);
         } catch (\Throwable $e) {
             $statusCode = $e instanceof HttpExceptionInterface
                 ? $e->getStatusCode()
