@@ -92,6 +92,42 @@ class UserServiceTest extends TestCase
         $service->createUser($targetPeople, 'blocked@example.com', 'secret');
     }
 
+    public function testDeleteUserRejectsPeopleWhoseOnlyLinkIsDisabled(): void
+    {
+        $company = new People(10);
+        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
+            new PeopleLink($company),
+        ]));
+        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
+            new PeopleLink($company, false),
+        ]));
+
+        $manager = $this->createMock(EntityManagerInterface::class);
+
+        $service = $this->buildService($manager, $currentPeople, [$company], [$company]);
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $service->deleteUser($targetPeople, 99);
+    }
+
+    public function testDeleteUserRejectsPeopleWhoseCompanyIsDisabled(): void
+    {
+        $company = new People(10, null, 0);
+        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
+            new PeopleLink(new People(10)),
+        ]));
+        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
+            new PeopleLink($company),
+        ]));
+
+        $manager = $this->createMock(EntityManagerInterface::class);
+
+        $service = $this->buildService($manager, $currentPeople, [new People(10)], [new People(10)]);
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $service->deleteUser($targetPeople, 99);
+    }
+
     public function testSecurityFilterRestrictsUsersToSelfAndAdministrativeCompanies(): void
     {
         $company = new People(10);
@@ -152,11 +188,13 @@ class UserServiceTest extends TestCase
 
         $service->securityFilter($queryBuilder, User::class, 'collection', 'u');
 
-        self::assertCount(2, $queryBuilder->joins);
+        self::assertCount(3, $queryBuilder->joins);
+        self::assertSame('user_people_link.people = user_people.id AND user_people_link.enable = true', $queryBuilder->joins[1][3]);
+        self::assertSame('user_people_company.enabled = true', $queryBuilder->joins[2][3]);
         self::assertSame([10], $queryBuilder->parameters['managedCompanies']);
         self::assertSame(1, $queryBuilder->parameters['myPeopleId']);
         self::assertStringContainsString('user_people.id = :myPeopleId', $queryBuilder->conditions[0]);
-        self::assertStringContainsString('user_people_link.company IN(:managedCompanies)', $queryBuilder->conditions[0]);
+        self::assertStringContainsString('user_people_company.id IN(:managedCompanies)', $queryBuilder->conditions[0]);
     }
 
     public function testSecurityFilterFallsBackToSelfWhenUserHasNoAdministrativeCompanies(): void
