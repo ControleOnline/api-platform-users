@@ -16,6 +16,7 @@ use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateUserAction;
+use ControleOnline\Controller\DeleteUserAction;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use ControleOnline\Repository\UserRepository;
@@ -37,7 +38,11 @@ use Doctrine\ORM\Mapping as ORM;
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
-        new Delete(security: 'is_granted(\'ROLE_HUMAN\')'),
+        new Delete(
+            uriTemplate: '/users/{id}',
+            controller: DeleteUserAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
+        ),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
