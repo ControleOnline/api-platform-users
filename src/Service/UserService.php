@@ -281,7 +281,10 @@ class UserService
         $myPeople = $this->getMyPeople();
         $managedCompanyIds = array_map(
             static fn(People $company): int => (int) $company->getId(),
-            $this->getManagedCompanies()
+            array_filter(
+                $this->getManagedCompanies(),
+                fn(People $company): bool => $this->isPeopleEnabled($company)
+            )
         );
 
         if (!$myPeople instanceof People && $managedCompanyIds === []) {
@@ -300,7 +303,22 @@ class UserService
                 PeopleLink::class,
                 $peopleLinkAlias,
                 'WITH',
-                sprintf('%s.people = %s.id', $peopleLinkAlias, $peopleAlias)
+                sprintf(
+                    '%s.people = %s.id AND %s.enable = true',
+                    $peopleLinkAlias,
+                    $peopleAlias,
+                    $peopleLinkAlias
+                )
+            );
+        }
+
+        $companyAlias = 'user_people_company';
+        if (!in_array($companyAlias, $queryBuilder->getAllAliases(), true)) {
+            $queryBuilder->leftJoin(
+                sprintf('%s.company', $peopleLinkAlias),
+                $companyAlias,
+                'WITH',
+                sprintf('%s.enabled = true', $companyAlias)
             );
         }
 
@@ -311,7 +329,7 @@ class UserService
         }
 
         if ($managedCompanyIds !== []) {
-            $visibilityConditions[] = sprintf('%s.company IN(:managedCompanies)', $peopleLinkAlias);
+            $visibilityConditions[] = sprintf('%s.id IN(:managedCompanies)', $companyAlias);
             $queryBuilder->setParameter('managedCompanies', $managedCompanyIds);
         }
 
@@ -377,7 +395,10 @@ class UserService
 
         $managedCompanyIds = array_map(
             static fn(People $company): int => (int) $company->getId(),
-            $this->getManagedCompanies()
+            array_filter(
+                $this->getManagedCompanies(),
+                fn(People $company): bool => $this->isPeopleEnabled($company)
+            )
         );
 
         if ($managedCompanyIds === []) {
@@ -392,17 +413,37 @@ class UserService
         $companyIds = [];
 
         foreach ($people->getLink() as $link) {
-            if (!$link instanceof PeopleLink) {
+            if (!$link instanceof PeopleLink || !$this->isLinkEnabled($link)) {
                 continue;
             }
 
             $company = $link->getCompany();
-            if ($company instanceof People) {
-                $companyIds[] = (int) $company->getId();
+            if (!$company instanceof People || !$this->isPeopleEnabled($company)) {
+                continue;
             }
+
+            $companyIds[] = (int) $company->getId();
         }
 
         return array_values(array_unique(array_filter($companyIds)));
+    }
+
+    private function isLinkEnabled(PeopleLink $link): bool
+    {
+        if (!method_exists($link, 'getEnabled')) {
+            return true;
+        }
+
+        return (bool) $link->getEnabled();
+    }
+
+    private function isPeopleEnabled(People $people): bool
+    {
+        if (!method_exists($people, 'getEnabled')) {
+            return true;
+        }
+
+        return (bool) $people->getEnabled();
     }
 
     private function decodePayload(?string $content): array
