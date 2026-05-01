@@ -75,11 +75,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false)]
-    #[Groups(['people:read', 'user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write'])]
     #[Assert\NotBlank(message: 'O e-mail é obrigatório.')]
     #[Assert\Email(message: 'O valor "{{ value }}" não é um e-mail válido.')]
     private string $username = '';
@@ -97,7 +97,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $lostPassword = null;
 
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private string $apiKey = '';
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]
