@@ -279,12 +279,12 @@ class UserService
     public function securityFilter(QueryBuilder $queryBuilder, $resourceClass = null, $applyTo = null, $rootAlias = null): void
     {
         $myPeople = $this->getMyPeople();
-        $myCompanyIds = array_map(
+        $managedCompanyIds = array_map(
             static fn(People $company): int => (int) $company->getId(),
-            $this->getMyCompanies()
+            $this->getManagedCompanies()
         );
 
-        if (!$myPeople instanceof People && $myCompanyIds === []) {
+        if (!$myPeople instanceof People && $managedCompanyIds === []) {
             $queryBuilder->andWhere('1 = 0');
             return;
         }
@@ -310,9 +310,9 @@ class UserService
             $queryBuilder->setParameter('myPeopleId', (int) $myPeople->getId());
         }
 
-        if ($myCompanyIds !== []) {
-            $visibilityConditions[] = sprintf('%s.company IN(:myCompanies)', $peopleLinkAlias);
-            $queryBuilder->setParameter('myCompanies', $myCompanyIds);
+        if ($managedCompanyIds !== []) {
+            $visibilityConditions[] = sprintf('%s.company IN(:managedCompanies)', $peopleLinkAlias);
+            $queryBuilder->setParameter('managedCompanies', $managedCompanyIds);
         }
 
         if ($visibilityConditions === []) {
@@ -346,6 +346,14 @@ class UserService
         );
     }
 
+    public function getManagedCompanies(): array
+    {
+        return $this->peopleRoleService->getAccessibleCompaniesForPeople(
+            $this->getMyPeople(),
+            PeopleLink::MANAGER_LINK
+        );
+    }
+
     private function denyUnlessCanManagePeople(People $people): void
     {
         if ($this->canManagePeople($people)) {
@@ -367,16 +375,16 @@ class UserService
             return false;
         }
 
-        $myCompanyIds = array_map(
+        $managedCompanyIds = array_map(
             static fn(People $company): int => (int) $company->getId(),
-            $this->getMyCompanies()
+            $this->getManagedCompanies()
         );
 
-        if ($myCompanyIds === []) {
+        if ($managedCompanyIds === []) {
             return false;
         }
 
-        return array_intersect($myCompanyIds, $targetCompanyIds) !== [];
+        return array_intersect($managedCompanyIds, $targetCompanyIds) !== [];
     }
 
     private function getCompanyIdsForPeople(People $people): array
