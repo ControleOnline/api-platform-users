@@ -8,6 +8,10 @@ namespace Doctrine\ORM {
         public function persist(object $object): void;
 
         public function flush(): void;
+
+        public function remove(object $object): void;
+
+        public function getConnection();
     }
 
     abstract class QueryBuilder
@@ -27,6 +31,25 @@ namespace Doctrine\ORM {
 }
 
 namespace Symfony\Component\HttpFoundation {
+    class JsonResponse
+    {
+        public function __construct(
+            private array $data = [],
+            private int $status = 200
+        ) {
+        }
+
+        public function getStatusCode(): int
+        {
+            return $this->status;
+        }
+
+        public function getData(bool $assoc = false): array
+        {
+            return $this->data;
+        }
+    }
+
     class RequestStack
     {
         public function getCurrentRequest(): mixed
@@ -37,12 +60,25 @@ namespace Symfony\Component\HttpFoundation {
 }
 
 namespace Symfony\Component\HttpKernel\Exception {
-    class BadRequestHttpException extends \RuntimeException
+    interface HttpExceptionInterface
     {
+        public function getStatusCode(): int;
     }
 
-    class AccessDeniedHttpException extends \RuntimeException
+    class BadRequestHttpException extends \RuntimeException implements HttpExceptionInterface
     {
+        public function getStatusCode(): int
+        {
+            return 400;
+        }
+    }
+
+    class AccessDeniedHttpException extends \RuntimeException implements HttpExceptionInterface
+    {
+        public function getStatusCode(): int
+        {
+            return 403;
+        }
     }
 }
 
@@ -92,13 +128,20 @@ namespace ControleOnline\Entity {
         public const EMPLOYEE_LINK = ['employee'];
         public const MANAGER_LINK = ['owner', 'director', 'manager'];
 
-        public function __construct(private ?People $company = null)
-        {
+        public function __construct(
+            private ?People $company = null,
+            private bool $enabled = true
+        ) {
         }
 
         public function getCompany(): ?People
         {
             return $this->company;
+        }
+
+        public function getEnabled(): bool
+        {
+            return $this->enabled;
         }
     }
 
@@ -192,8 +235,10 @@ namespace ControleOnline\Entity {
     {
         public function __construct(
             private int $id = 0,
-            private LinkCollection $link = new LinkCollection()
+            private ?LinkCollection $link = null,
+            private int $enabled = 1
         ) {
+            $this->link ??= new LinkCollection();
         }
 
         public function getId(): int
@@ -253,7 +298,7 @@ namespace ControleOnline\Entity {
 
         public function getEnabled(): int
         {
-            return 1;
+            return $this->enabled;
         }
 
         public function getPeopleType(): string
@@ -317,4 +362,5 @@ namespace ControleOnline\Service {
 
 namespace {
     require_once __DIR__ . '/../src/Service/UserService.php';
+    require_once __DIR__ . '/../src/Controller/DeleteUserAction.php';
 }
