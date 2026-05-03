@@ -19,6 +19,7 @@ use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Entity\People;
 use ControleOnline\Repository\UserRepository;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -35,18 +36,21 @@ use Doctrine\ORM\Mapping as ORM;
         new Post(
             uriTemplate: '/users',
             controller: CreateUserAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
-        new Delete(security: 'is_granted(\'ROLE_HUMAN\')'),
+        new Put(
+            security: 'is_granted(\'ROLE_CLIENT\') and object == user',
+        ),
+        new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Post(
             uriTemplate: '/token',
@@ -55,8 +59,8 @@ use Doctrine\ORM\Mapping as ORM;
             security: 'is_granted(\'PUBLIC_ACCESS\')',
 
         ),
-        new Get(security: 'is_granted(\'ROLE_HUMAN\')'),
-        new GetCollection(security: 'is_granted(\'ROLE_HUMAN\')')
+        new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
+        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
     normalizationContext: ['groups' => ['user:read']],
@@ -65,8 +69,6 @@ use Doctrine\ORM\Mapping as ORM;
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    private array $resolvedRoles = [];
-
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
@@ -99,6 +101,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinColumn(name: 'people_id', referencedColumnName: 'id', nullable: false)]
     #[Groups(['user:read'])]
     private People $people;
+
+    #[ORM\Column(name: 'timezone_id', type: 'smallint', nullable: true, options: ['unsigned' => true])]
+    #[Groups(['user:read', 'user:write'])]
+    #[SerializedName('timezone_id')]
+    private ?int $timezoneId = null;
 
     public function __construct()
     {
@@ -133,14 +140,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getRoles(): array
     {
-        return array_values(array_unique($this->resolvedRoles));
-    }
-
-    public function setResolvedRoles(array $roles): self
-    {
-        $this->resolvedRoles = array_values(array_unique(array_filter($roles)));
-
-        return $this;
+        return ['ROLE_CLIENT'];
     }
 
     public function getSalt(): ?string
@@ -206,6 +206,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPeople(): People
     {
         return $this->people;
+    }
+
+    public function setTimezoneId(?int $timezoneId): self
+    {
+        $this->timezoneId = $timezoneId;
+
+        return $this;
+    }
+
+    public function getTimezoneId(): ?int
+    {
+        return $this->timezoneId;
     }
 
     public function setLostPassword(?string $hash): self
