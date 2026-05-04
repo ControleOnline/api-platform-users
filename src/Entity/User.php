@@ -17,11 +17,14 @@ use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
+use ControleOnline\Controller\UpdateUserPreferencesAction;
 use ControleOnline\Entity\People;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Repository\UserRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 
@@ -47,6 +50,14 @@ use Doctrine\ORM\Mapping as ORM;
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+        ),
+        new Put(
+            uriTemplate: '/users/preferences',
+            controller: UpdateUserPreferencesAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
+            deserialize: false,
+            read: false,
+            output: false,
         ),
         new Post(
             uriTemplate: '/token',
@@ -99,6 +110,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinColumn(name: 'people_id', referencedColumnName: 'id', nullable: false)]
     #[Groups(['user:read'])]
     private People $people;
+
+    #[ORM\ManyToOne(targetEntity: Timezone::class)]
+    #[ORM\JoinColumn(name: 'timezone_id', referencedColumnName: 'id', nullable: true)]
+    #[Groups(['user:read', 'user:write'])]
+    private ?Timezone $timezone = null;
 
     public function __construct()
     {
@@ -206,6 +222,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPeople(): People
     {
         return $this->people;
+    }
+
+    public function setTimezone(?Timezone $timezone): self
+    {
+        $this->timezone = $timezone;
+
+        return $this;
+    }
+
+    public function getTimezone(): ?Timezone
+    {
+        return $this->timezone;
     }
 
     public function setLostPassword(?string $hash): self

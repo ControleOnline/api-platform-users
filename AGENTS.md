@@ -10,6 +10,7 @@
 - Token e sessao devem usar a mesma resolucao de roles baseada em `people_link`.
 - `ROLE_HUMAN` e apenas um agregador para guardas de entrada da API; ele nao deve ser persistido no usuario.
 - `ROLE_SUPER` so aparece quando a pessoa autenticada for `owner` da empresa principal.
+- Preferencias operacionais do login que pertencem ao usuario autenticado, como fuso horario, devem ficar em `User` e sair no payload de sessao/login.
 
 ## Integracao com `people`
 - A resolucao de roles vem de `PeopleRoleService`.
