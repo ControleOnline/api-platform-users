@@ -67,3 +67,29 @@ class TokenAuthenticator extends SecurityTokenAuthenticator
     
 }
 ```
+
+## Public create-account compatibility
+
+The module keeps the current public signup flow at `POST /create-account` and also accepts the legacy web route `POST /users/create-account`.
+
+### Accepted payload
+
+```json
+{
+  "name": "Maria Silva",
+  "email": "maria@example.com",
+  "password": "secret123",
+  "confirmPassword": "secret123"
+}
+```
+
+### Behaviour
+
+- both public routes create the account through the same action
+- a successful request returns the session payload expected by the web login flow
+- invalid public payloads now return `400 Bad Request` instead of an internal server error
+
+### Test coverage
+
+- `tests/Controller/CreateAccountActionTest.php`
+- GitHub Actions workflow: `Pull Request Checks`
