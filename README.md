@@ -89,3 +89,17 @@ Current behavior:
 Validation:
 - focused PHPUnit coverage lives in `tests/Service/PasswordRecoveryServiceTest.php`
 - the branch workflow `Pull Request Checks` is the canonical automated evidence for this flow in review branches
+
+## Development quality checks
+
+This module now keeps its CI bootstrap inside the repository so pull requests can publish reproducible validation evidence without relying on global tools.
+
+Current checks:
+- run `composer install` before local validation so `php_codesniffer` is available from `vendor/bin`
+- run `composer lint` to apply the repository `phpcs.xml` ruleset to `src`
+- pull requests to `master` trigger the `Pull Request Checks` workflow
+- the workflow validates `composer.json`, installs dependencies and runs `tools/phpcs-changed-files.sh` only against the PHP files changed in the branch
+
+Notes:
+- incremental linting is intentional and avoids failing the branch because of legacy style debt outside the current diff
+- `.scrutinizer.yml` stays focused on Scrutinizer analysis and no longer forces a full module `phpcs` execution
