@@ -28,3 +28,10 @@
 ## Limites
 - Dados cadastrais de pessoa e empresa pertencem a `people`.
 - Recorte de dados por empresa deve ficar nos `securityFilter` dos services de dominio.
+
+## Recuperacao de senha
+- `UserService` precisa ter `securityFilter` real para leitura e escrita de `User`; placeholders como `getPermission() => true` nao contam como protecao valida.
+- Fluxo publico de recuperacao so pode alterar credencial depois de prova de posse do fator de recuperacao; enviar e-mail por si so nao autoriza escrita.
+- Se o requisito funcional falar em senha temporaria com login obrigatorio e troca posterior, a implementacao precisa cumprir exatamente esse comportamento ou o requisito precisa ser ajustado explicitamente. Link de redefinicao com expiracao nao e equivalente por padrao.
+- Em qualquer variante, expiracao, revogacao e limpeza de estado antigo devem acontecer no backend e nao apenas na interface.
+- Credenciais temporarias, hashes de recuperacao e marcadores de expiracao nao podem vazar por grupos amplos de serializacao.

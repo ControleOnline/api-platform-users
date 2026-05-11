@@ -7,12 +7,16 @@ use ControleOnline\Entity\Email;
 use ControleOnline\Entity\PasswordRecovery;
 use ControleOnline\Entity\RecoveryAccess;
 use ControleOnline\Entity\User;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class PasswordRecoveryService
 {
+    private const RECOVERY_WINDOW_MINUTES = 15;
+
     public function __construct(
         private EntityManagerInterface $manager,
         private EmailService $emailService,
@@ -49,7 +53,8 @@ class PasswordRecoveryService
 
         $user
             ->setOauthHash($hash)
-            ->setLostPassword($lost);
+            ->setLostPassword($lost)
+            ->setPasswordRecoveryRequestedAt(new DateTimeImmutable());
 
         $this->manager->persist($user);
         $this->manager->flush();
@@ -85,14 +90,11 @@ class PasswordRecoveryService
             throw new Exception('Solicitacao de recuperacao invalida ou expirada.');
         }
 
+        $this->assertRecoveryWindowIsStillValid($user);
+
         $this->userService->changePassword($user, (string) $payload->password);
 
-        $user
-            ->setOauthHash(null)
-            ->setLostPassword(null);
-
-        $this->manager->persist($user);
-        $this->manager->flush();
+        $this->clearRecoveryState($user);
     }
 
     private function findUserForRecovery(PasswordRecovery $payload): ?User
@@ -257,7 +259,7 @@ class PasswordRecoveryService
             return;
         }
 
-        throw new Exception((string) $violations[0]->getMessage());
+        throw new BadRequestHttpException((string) $violations[0]->getMessage());
     }
 
     private function resolveUserFromPeople(
@@ -308,12 +310,43 @@ class PasswordRecoveryService
                 <p>Recebemos uma solicitacao para redefinir a sua senha.</p>
                 <p>Use o link temporario abaixo para cadastrar uma nova senha:</p>
                 <p><a href="%s">%s</a></p>
+                <p>Por seguranca, este link expira em %d minutos.</p>
                 <p>Se voce nao solicitou a recuperacao, basta ignorar este e-mail.</p>
             </div>',
             $name,
             $link,
-            $link
+            $link,
+            self::RECOVERY_WINDOW_MINUTES
         );
+    }
+
+    private function assertRecoveryWindowIsStillValid(User $user): void
+    {
+        $requestedAt = $user->getPasswordRecoveryRequestedAt();
+        if (!$requestedAt instanceof DateTimeImmutable) {
+            $this->clearRecoveryState($user);
+            throw new Exception('Solicitacao de recuperacao invalida ou expirada.');
+        }
+
+        $deadline = $requestedAt->modify(
+            sprintf('+%d minutes', self::RECOVERY_WINDOW_MINUTES)
+        );
+
+        if (!$deadline instanceof DateTimeImmutable || $deadline < new DateTimeImmutable()) {
+            $this->clearRecoveryState($user);
+            throw new Exception('O link de recuperacao expirou. Solicite um novo e-mail.');
+        }
+    }
+
+    private function clearRecoveryState(User $user): void
+    {
+        $user
+            ->setOauthHash(null)
+            ->setLostPassword(null)
+            ->setPasswordRecoveryRequestedAt(null);
+
+        $this->manager->persist($user);
+        $this->manager->flush();
     }
 
     private function buildRecoveryUrl(string $hash, string $lost): string

@@ -103,6 +103,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', length: 60, nullable: true)]
     private ?string $lostPassword = null;
 
+    #[ORM\Column(name: 'password_recovery_requested_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $passwordRecoveryRequestedAt = null;
+
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
     #[Groups(['people:read', 'user:read'])]
     private string $apiKey = '';
@@ -239,5 +242,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getLostPassword(): ?string
     {
         return $this->lostPassword;
+    }
+
+    public function setPasswordRecoveryRequestedAt(
+        ?\DateTimeImmutable $requestedAt
+    ): self {
+        $this->passwordRecoveryRequestedAt = $requestedAt;
+        return $this;
+    }
+
+    public function getPasswordRecoveryRequestedAt(): ?\DateTimeImmutable
+    {
+        return $this->passwordRecoveryRequestedAt;
     }
 }

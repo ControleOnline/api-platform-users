@@ -6,6 +6,7 @@ use ControleOnline\Service\HydratorService;
 use ControleOnline\Service\PasswordRecoveryService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class RequestPasswordRecoveryAction
 {
@@ -28,7 +29,7 @@ class RequestPasswordRecoveryAction
         } catch (\Exception $e) {
             return new JsonResponse(
                 $this->hydratorService->error($e),
-                500
+                $e instanceof BadRequestHttpException ? 400 : 500
             );
         }
     }
