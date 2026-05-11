@@ -79,6 +79,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    private array $resolvedRoles = [];
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
@@ -150,7 +152,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getRoles(): array
     {
-        return ['ROLE_CLIENT'];
+        return array_values(array_unique($this->resolvedRoles));
+    }
+
+    public function setResolvedRoles(array $roles): self
+    {
+        $this->resolvedRoles = array_values(array_unique(array_filter($roles)));
+
+        return $this;
     }
 
     public function getSalt(): ?string
