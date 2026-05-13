@@ -45,7 +45,7 @@ if (!interface_exists('Doctrine\\ORM\\EntityManagerInterface')) {
 }
 
 if (!class_exists('Doctrine\\ORM\\EntityRepository')) {
-    eval('namespace Doctrine\\ORM; class EntityRepository {}');
+    eval('namespace Doctrine\\ORM; class EntityRepository { public function find(mixed $id): mixed { return null; } public function findOneBy(array $criteria): mixed { return null; } }');
 }
 
 if (!class_exists('ControleOnline\\Service\\FileService')) {
@@ -61,7 +61,7 @@ if (!class_exists('ControleOnline\\Entity\\Language')) {
 }
 
 if (!class_exists('ControleOnline\\Entity\\People')) {
-    eval('namespace ControleOnline\\Entity; class People { private ?Timezone $timezone = null; public function getId(): ?int { return 1; } public function getName(): string { return ""; } public function getAlias(): string { return ""; } public function getLanguage(): ?Language { return null; } public function getEnabled(): bool { return true; } public function getPeopleType(): string { return "F"; } public function getLink() { return new class { public function first() { return false; } }; } public function getEmail() { return new class { public function count(): int { return 0; } public function first() { return null; } }; } public function getPhone() { return new class { public function count(): int { return 0; } public function first() { return null; } }; } }');
+    eval('namespace ControleOnline\\Entity; class People { public function getId(): ?int { return 1; } public function getName(): string { return ""; } public function getAlias(): string { return ""; } public function getLanguage(): ?Language { return null; } public function getEnabled(): bool { return true; } public function getPeopleType(): string { return "F"; } public function getLink() { return new class { public function first() { return false; } }; } public function getEmail() { return new class { public function count(): int { return 0; } public function first() { return null; } }; } public function getPhone() { return new class { public function count(): int { return 0; } public function first() { return null; } }; } }');
 }
 
 if (!class_exists('ControleOnline\\Entity\\Email')) {
