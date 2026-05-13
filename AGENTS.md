@@ -17,6 +17,11 @@
 - `users` nao deve duplicar regra de vinculo, cadeia comercial ou escopo por empresa.
 - `client`, `provider` e `franchisee` podem existir no token se vierem de vinculos diretos, mas nao substituem role humana operacional.
 
+## Fluxo legado de auto-cadastro
+- O endpoint publico `POST /users/create-account` deve continuar aceitando o payload simples do front web (`name`, `email`, `password` e `confirmPassword`).
+- O retorno desse endpoint continua sendo a sessao pronta para login imediato no wrapper legado consumido pelo front web.
+- Esse contrato de resposta e uma excecao objetiva de compatibilidade externa: parsing, validacao e criacao de sessao ficam em service, e o controller deve apenas orquestrar a chamada e delegar a montagem do wrapper legado.
+
 ## Regras de autorizacao para `UserService`
 - `UserService` deve ter `securityFilter` explicito ou mecanismo equivalente com efeito comprovavel para leitura e escrita de `User`.
 - Filtro por query string, como `people=/people/{id}`, nao conta como autorizacao; o service precisa validar o escopo da pessoa autenticada sobre a entidade alvo.
