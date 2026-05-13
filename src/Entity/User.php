@@ -18,11 +18,14 @@ use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
+use ControleOnline\Controller\UpdateUserPreferencesAction;
 use ControleOnline\Entity\People;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Repository\UserRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 
@@ -44,6 +47,9 @@ use Doctrine\ORM\Mapping as ORM;
             securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
             security: 'is_granted(\'PUBLIC_ACCESS\')',
         ),
+        new Put(
+            security: 'is_granted(\'ROLE_CLIENT\') and object == user',
+        ),
         new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
@@ -53,7 +59,15 @@ use Doctrine\ORM\Mapping as ORM;
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+        ),
+        new Put(
+            uriTemplate: '/users/preferences',
+            controller: UpdateUserPreferencesAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
+            deserialize: false,
+            read: false,
+            output: false,
         ),
         new Post(
             uriTemplate: '/token',
@@ -72,6 +86,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    private array $resolvedRoles = [];
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
@@ -105,6 +121,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read'])]
     private People $people;
 
+    #[ORM\ManyToOne(targetEntity: Timezone::class)]
+    #[ORM\JoinColumn(name: 'timezone_id', referencedColumnName: 'id', nullable: true)]
+    #[Groups(['user:read', 'user:write'])]
+    private ?Timezone $timezone = null;
+
     public function __construct()
     {
         $this->generateApiKey();
@@ -123,6 +144,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUsername(string $username): self
     {
         $this->username = $username;
+
         return $this;
     }
 
@@ -138,7 +160,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getRoles(): array
     {
-        return ['ROLE_CLIENT'];
+        return array_values(array_unique($this->resolvedRoles));
+    }
+
+    public function setResolvedRoles(array $roles): self
+    {
+        $this->resolvedRoles = array_values(array_unique(array_filter($roles)));
+
+        return $this;
     }
 
     public function getSalt(): ?string
@@ -154,6 +183,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function generateApiKey(): string
     {
         $this->apiKey = md5($this->getUsername() . microtime());
+
         return $this->apiKey;
     }
 
@@ -165,6 +195,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setHash(string $hash): self
     {
         $this->hash = $hash;
+
         return $this;
     }
 
@@ -181,12 +212,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setOauthHash(?string $hash): self
     {
         $this->oauthHash = $hash;
+
         return $this;
     }
 
     public function setOauthUser(?string $user): self
     {
         $this->oauthUser = $user;
+
         return $this;
     }
 
@@ -198,6 +231,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPeople(People $people): self
     {
         $this->people = $people;
+
         return $this;
     }
 
@@ -206,9 +240,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->people;
     }
 
+    public function setTimezone(?Timezone $timezone): self
+    {
+        $this->timezone = $timezone;
+
+        return $this;
+    }
+
+    public function getTimezone(): ?Timezone
+    {
+        return $this->timezone;
+    }
+
     public function setLostPassword(?string $hash): self
     {
         $this->lostPassword = $hash;
+
         return $this;
     }
 
