@@ -3,27 +3,32 @@
 namespace ControleOnline\Users\Tests\Controller;
 
 use ControleOnline\Controller\CreateAccountAction;
-use ControleOnline\Entity\User;
+use ControleOnline\Service\CreateAccountResponseFactory;
 use ControleOnline\Service\UserService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class CreateAccountActionTest extends TestCase
 {
     public function testReturnsValidationErrorWithoutMaskingItAsServerError(): void
     {
-        $service = $this->createMock(UserService::class);
-        $service->expects(self::never())->method('discoveryPeople');
-        $service->expects(self::never())->method('createUser');
-        $service->expects(self::never())->method('getUserSession');
-
-        $action = new CreateAccountAction($service);
-        $response = $action(new Request(content: json_encode([
+        $payload = json_encode([
             'name' => 'Maria Silva',
             'email' => 'maria@example.com',
             'password' => 'secret',
             'confirmPassword' => 'different',
-        ], JSON_THROW_ON_ERROR)));
+        ], JSON_THROW_ON_ERROR);
+
+        $service = $this->createMock(UserService::class);
+        $service
+            ->expects(self::once())
+            ->method('createAccountSessionFromContent')
+            ->with($payload)
+            ->willThrowException(new BadRequestHttpException('password confirmation does not match'));
+
+        $action = new CreateAccountAction($service, new CreateAccountResponseFactory());
+        $response = $action(new Request(content: $payload));
 
         self::assertSame(400, $response->getStatusCode());
         self::assertSame([
@@ -38,37 +43,26 @@ class CreateAccountActionTest extends TestCase
 
     public function testReturnsStructuredSessionPayloadForSuccessfulSignup(): void
     {
-        $people = new \stdClass();
-        $user = $this->createMock(User::class);
+        $payload = json_encode([
+            'name' => 'Maria Silva',
+            'email' => 'maria@example.com',
+            'password' => 'secret',
+            'confirmPassword' => 'secret',
+        ], JSON_THROW_ON_ERROR);
 
         $service = $this->createMock(UserService::class);
         $service
             ->expects(self::once())
-            ->method('discoveryPeople')
-            ->with('maria@example.com', 'Maria', 'Silva')
-            ->willReturn($people);
-        $service
-            ->expects(self::once())
-            ->method('createUser')
-            ->with($people, 'maria@example.com', 'secret')
-            ->willReturn($user);
-        $service
-            ->expects(self::once())
-            ->method('getUserSession')
-            ->with($user)
+            ->method('createAccountSessionFromContent')
+            ->with($payload)
             ->willReturn([
                 'id' => 15,
                 'username' => 'maria@example.com',
                 'api_key' => 'abc123',
             ]);
 
-        $action = new CreateAccountAction($service);
-        $response = $action(new Request(content: json_encode([
-            'name' => 'Maria Silva',
-            'email' => 'maria@example.com',
-            'password' => 'secret',
-            'confirmPassword' => 'secret',
-        ], JSON_THROW_ON_ERROR)));
+        $action = new CreateAccountAction($service, new CreateAccountResponseFactory());
+        $response = $action(new Request(content: $payload));
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame([
