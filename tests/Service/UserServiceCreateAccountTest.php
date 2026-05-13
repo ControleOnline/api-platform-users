@@ -2,6 +2,7 @@
 
 namespace ControleOnline\Users\Tests\Service;
 
+use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
 use ControleOnline\Service\FileService;
 use ControleOnline\Service\UserService;
@@ -42,7 +43,7 @@ class UserServiceCreateAccountTest extends TestCase
 
     public function testBuildsSessionUsingSplitNameAndUserCreationFlow(): void
     {
-        $people = new \stdClass();
+        $people = new People();
         $user = $this->createMock(User::class);
 
         $service = $this->createPartialMockedService();
