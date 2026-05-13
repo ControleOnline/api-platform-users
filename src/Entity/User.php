@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
+use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Controller\UpdateUserPreferencesAction;
@@ -39,6 +40,12 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/users',
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            uriTemplate: '/users/create-account',
+            controller: CreateAccountAction::class,
+            securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
+            security: 'is_granted(\'PUBLIC_ACCESS\')',
         ),
         new Put(
             security: 'is_granted(\'ROLE_CLIENT\') and object == user',
@@ -137,6 +144,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUsername(string $username): self
     {
         $this->username = $username;
+
         return $this;
     }
 
@@ -175,6 +183,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function generateApiKey(): string
     {
         $this->apiKey = md5($this->getUsername() . microtime());
+
         return $this->apiKey;
     }
 
@@ -186,6 +195,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setHash(string $hash): self
     {
         $this->hash = $hash;
+
         return $this;
     }
 
@@ -202,12 +212,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setOauthHash(?string $hash): self
     {
         $this->oauthHash = $hash;
+
         return $this;
     }
 
     public function setOauthUser(?string $user): self
     {
         $this->oauthUser = $user;
+
         return $this;
     }
 
@@ -219,6 +231,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPeople(People $people): self
     {
         $this->people = $people;
+
         return $this;
     }
 
@@ -242,6 +255,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setLostPassword(?string $hash): self
     {
         $this->lostPassword = $hash;
+
         return $this;
     }
 
