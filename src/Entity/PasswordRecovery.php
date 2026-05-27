@@ -23,17 +23,13 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 final class PasswordRecovery
 {
-    /**
-     * @Assert\NotBlank
-     */
+    #[Assert\NotBlank]
     public $username;
 
-    /**
-     * @Assert\NotBlank
-     * @Assert\Email(
-     *     message = "The email '{{ value }}' is not a valid email.",
-     *     mode    = "html5",
-     * )
-     */
+    #[Assert\NotBlank]
+    #[Assert\Email(
+        message: "The email '{{ value }}' is not a valid email.",
+        mode: 'html5',
+    )]
     public $email;
 }
