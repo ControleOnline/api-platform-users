@@ -2,16 +2,9 @@
 
 namespace ControleOnline\Tests\Service;
 
-require_once dirname(__DIR__, 2) . '/src/Entity/User.php';
-require_once dirname(__DIR__, 3) . '/common/src/Entity/Timezone.php';
-require_once dirname(__DIR__, 2) . '/src/Service/UserService.php';
-require_once dirname(__DIR__, 3) . '/common/src/Service/FileService.php';
-require_once dirname(__DIR__, 3) . '/people/src/Service/PeopleRoleService.php';
-
 use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use ControleOnline\Service\FileService;
-use ControleOnline\Service\PeopleRoleService;
 use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -75,7 +68,6 @@ class UserServiceTest extends TestCase
             $manager,
             $this->createMock(UserPasswordHasherInterface::class),
             $this->createMock(FileService::class),
-            $this->createMock(PeopleRoleService::class),
         );
     }
 

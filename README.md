@@ -89,3 +89,31 @@ Current behavior:
 Validation:
 - focused PHPUnit coverage lives in `tests/Service/PasswordRecoveryServiceTest.php`
 - the branch workflow `Pull Request Checks` is the canonical automated evidence for this flow in review branches
+
+## Public create-account compatibility
+
+The module keeps the current public signup flow at `POST /create-account` and also accepts the legacy web route `POST /users/create-account`.
+
+### Accepted payload
+
+```json
+{
+  "name": "Maria Silva",
+  "email": "maria@example.com",
+  "password": "secret123",
+  "confirmPassword": "secret123"
+}
+```
+
+### Behaviour
+
+- both public routes create the account through the same service flow
+- a successful request returns the session payload expected by the web login flow
+- invalid public payloads return `400 Bad Request` instead of an internal server error
+- the legacy response wrapper is kept only because the existing web client still depends on it
+
+### Test coverage
+
+- `tests/Controller/CreateAccountActionTest.php`
+- `tests/Service/UserServiceCreateAccountTest.php`
+- GitHub Actions workflow: `Pull Request Checks`

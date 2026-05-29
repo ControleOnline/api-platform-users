@@ -9,8 +9,8 @@ use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserService
 {
@@ -31,6 +31,7 @@ class UserService
 
         $this->manager->persist($user);
         $this->manager->flush();
+
         return $user;
     }
 
@@ -54,6 +55,7 @@ class UserService
 
         $this->manager->persist($user);
         $this->manager->flush();
+
         return $user;
     }
 
@@ -111,6 +113,45 @@ class UserService
         ];
     }
 
+    public function createAccountSessionFromContent(?string $content): array
+    {
+        return $this->getUserSession(
+            $this->createAccountUserFromPayload(
+                $this->decodeStrictPayload($content)
+            )
+        );
+    }
+
+    public function createAccountUserFromPayload(array $payload): User
+    {
+        foreach (['name', 'email', 'password'] as $field) {
+            if (!isset($payload[$field]) || trim((string) $payload[$field]) === '') {
+                throw new BadRequestHttpException('name, email and password are required');
+            }
+        }
+
+        if (
+            isset($payload['confirmPassword']) &&
+            (string) $payload['confirmPassword'] !== (string) $payload['password']
+        ) {
+            throw new BadRequestHttpException('password confirmation does not match');
+        }
+
+        [$firstName, $lastName] = $this->splitName((string) $payload['name']);
+
+        $people = $this->discoveryPeople(
+            (string) $payload['email'],
+            $firstName,
+            $lastName
+        );
+
+        return $this->createUser(
+            $people,
+            (string) $payload['email'],
+            (string) $payload['password']
+        );
+    }
+
     private function getUserRealName(People $people): string
     {
         $realName = 'John Doe';
@@ -155,6 +196,7 @@ class UserService
 
         $this->manager->persist($people);
         $this->manager->flush();
+
         return $people;
     }
 
@@ -180,6 +222,7 @@ class UserService
 
         $this->manager->persist($user);
         $this->manager->flush();
+
         return $user;
     }
 
@@ -286,6 +329,7 @@ class UserService
     public function getCompanyId(User $user)
     {
         $company = $this->getCompany($user);
+
         return $company ? $company->getId() : null;
     }
 
@@ -344,6 +388,34 @@ class UserService
         $decoded = json_decode($content, true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function decodeStrictPayload(?string $content): array
+    {
+        if (!is_string($content) || trim($content) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new BadRequestHttpException('invalid json payload');
+        }
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function splitName(string $name): array
+    {
+        $name = trim((string) preg_replace('/\s+/', ' ', $name));
+
+        if ($name === '') {
+            return ['', ''];
+        }
+
+        $parts = explode(' ', $name, 2);
+
+        return [$parts[0], $parts[1] ?? ''];
     }
 
     private function extractTimezoneId(mixed $value): ?int
