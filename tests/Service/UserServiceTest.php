@@ -4,10 +4,12 @@ namespace ControleOnline\Tests\Service;
 
 require_once dirname(__DIR__, 2) . '/src/Entity/User.php';
 require_once dirname(__DIR__, 3) . '/common/src/Entity/Timezone.php';
+require_once dirname(__DIR__, 3) . '/people/src/Entity/People.php';
 require_once dirname(__DIR__, 2) . '/src/Service/UserService.php';
 require_once dirname(__DIR__, 3) . '/common/src/Service/FileService.php';
 require_once dirname(__DIR__, 3) . '/people/src/Service/PeopleRoleService.php';
 
+use ControleOnline\Entity\People;
 use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use ControleOnline\Service\FileService;
@@ -20,6 +22,64 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserServiceTest extends TestCase
 {
+    public function testGetUserSessionResolvesRuntimeRolesBeforeBuildingPayload(): void
+    {
+        $emailCollection = new class {
+            public function count(): int
+            {
+                return 0;
+            }
+
+            public function first()
+            {
+                return null;
+            }
+        };
+
+        $phoneCollection = new class {
+            public function count(): int
+            {
+                return 0;
+            }
+
+            public function first()
+            {
+                return null;
+            }
+        };
+
+        $people = $this->createMock(People::class);
+        $people->method('getId')->willReturn(6);
+        $people->method('getName')->willReturn('Alexandre');
+        $people->method('getAlias')->willReturn('Alemac');
+        $people->method('getEmail')->willReturn($emailCollection);
+        $people->method('getPhone')->willReturn($phoneCollection);
+        $people->method('getLanguage')->willReturn(null);
+        $people->method('getEnabled')->willReturn(true);
+
+        $roleService = $this->createMock(PeopleRoleService::class);
+        $roleService
+            ->expects(self::once())
+            ->method('getGrantedRoles')
+            ->with($people)
+            ->willReturn(['ROLE_OWNER', 'ROLE_SUPER']);
+
+        $service = $this->buildService(
+            $this->createMock(EntityManagerInterface::class),
+            $this->createMock(FileService::class),
+            $roleService,
+        );
+
+        $user = new User();
+        $user->setUsername('alemac@mac.com');
+        $user->setPeople($people);
+
+        $session = $service->getUserSession($user);
+
+        self::assertSame(['ROLE_OWNER', 'ROLE_SUPER'], $session['roles']);
+        self::assertSame(['ROLE_OWNER', 'ROLE_SUPER'], $user->getRoles());
+    }
+
     public function testUpdatePreferencesFromContentAcceptsTimezoneIri(): void
     {
         $timezone = $this->createTimezone(12, 'America/Sao_Paulo');
@@ -69,13 +129,17 @@ class UserServiceTest extends TestCase
         self::assertNull($updatedUser->getTimezone());
     }
 
-    private function buildService(EntityManagerInterface $manager): UserService
+    private function buildService(
+        EntityManagerInterface $manager,
+        ?FileService $fileService = null,
+        ?PeopleRoleService $peopleRoleService = null,
+    ): UserService
     {
         return new UserService(
             $manager,
             $this->createMock(UserPasswordHasherInterface::class),
-            $this->createMock(FileService::class),
-            $this->createMock(PeopleRoleService::class),
+            $fileService ?? $this->createMock(FileService::class),
+            $peopleRoleService ?? $this->createMock(PeopleRoleService::class),
         );
     }
 

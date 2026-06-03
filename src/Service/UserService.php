@@ -52,7 +52,8 @@ class UserService
     public function __construct(
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
-        private FileService $fileService
+        private FileService $fileService,
+        private PeopleRoleService $peopleRoleService,
     ) {}
 
     public function changePassword(User $user, $password)
@@ -110,6 +111,10 @@ class UserService
 
     public function getUserSession(User $user)
     {
+        $user->setResolvedRoles(
+            $this->peopleRoleService->getGrantedRoles($user->getPeople())
+        );
+
         $email = '';
         $code = '';
         $number = '';
