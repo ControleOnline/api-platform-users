@@ -48,12 +48,20 @@ class UserServiceTest extends TestCase
             }
         };
 
+        $linkCollection = new class {
+            public function first()
+            {
+                return false;
+            }
+        };
+
         $people = $this->createMock(People::class);
         $people->method('getId')->willReturn(6);
         $people->method('getName')->willReturn('Alexandre');
         $people->method('getAlias')->willReturn('Alemac');
         $people->method('getEmail')->willReturn($emailCollection);
         $people->method('getPhone')->willReturn($phoneCollection);
+        $people->method('getLink')->willReturn($linkCollection);
         $people->method('getLanguage')->willReturn(null);
         $people->method('getEnabled')->willReturn(true);
 

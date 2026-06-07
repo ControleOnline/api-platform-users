@@ -11,7 +11,6 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
@@ -42,16 +41,18 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Put(
             security: 'is_granted(\'ROLE_CLIENT\') and object == user',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
+            requirements: ['id' => '\d+'],
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
+            requirements: ['id' => '\d+'],
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
@@ -69,7 +70,10 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: 'is_granted(\'PUBLIC_ACCESS\')',
 
         ),
-        new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
+        new Get(
+            security: 'is_granted(\'ROLE_CLIENT\')',
+            requirements: ['id' => '\d+'],
+        ),
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
