@@ -22,29 +22,21 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 final class RecoveryAccess
 {
-    /**
-     * @Assert\NotBlank
-     */
+    #[Assert\NotBlank]
     public $hash;
-    /**
-     * @Assert\NotBlank
-     */
+    #[Assert\NotBlank]
     public $lost;
-    /**
-     * @Assert\NotBlank
-     * @Assert\Length(
-     *    min        = 6,
-     *    minMessage = "Your password name must be at least {{ limit }} characters long",
-     * )
-     * @Assert\NotCompromisedPassword
-     */
+    #[Assert\NotBlank]
+    #[Assert\Length(
+        min: 6,
+        minMessage: "Your password name must be at least {{ limit }} characters long",
+    )]
+    #[Assert\NotCompromisedPassword]
     public $password;
-    /**
-     * @Assert\NotBlank
-     * @Assert\Expression(
-     *     "this.password === this.confirm",
-     *     message="Password and Confirm Password must be identical"
-     * )
-     */
+    #[Assert\NotBlank]
+    #[Assert\Expression(
+        "this.password === this.confirm",
+        message: "Password and Confirm Password must be identical",
+    )]
     public $confirm;
 }

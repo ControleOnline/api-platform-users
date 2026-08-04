@@ -11,18 +11,19 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
+use ControleOnline\Controller\UpdateUserPreferencesAction;
 use ControleOnline\Entity\People;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Repository\UserRepository;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 
@@ -40,17 +41,27 @@ use Doctrine\ORM\Mapping as ORM;
         ),
         new Put(
             security: 'is_granted(\'ROLE_CLIENT\') and object == user',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security: 'is_granted(\'ROLE_CLIENT\')'),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
+            requirements: ['id' => '\d+'],
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            requirements: ['id' => '\d+'],
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+        ),
+        new Put(
+            uriTemplate: '/users/preferences',
+            controller: UpdateUserPreferencesAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
+            deserialize: false,
+            read: false,
+            output: false,
         ),
         new Post(
             uriTemplate: '/token',
@@ -59,7 +70,10 @@ use Doctrine\ORM\Mapping as ORM;
             security: 'is_granted(\'PUBLIC_ACCESS\')',
 
         ),
-        new Get(security: 'is_granted(\'ROLE_CLIENT\')'),
+        new Get(
+            security: 'is_granted(\'ROLE_CLIENT\')',
+            requirements: ['id' => '\d+'],
+        ),
         new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
@@ -69,6 +83,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ApiFilter(filterClass: SearchFilter::class, properties: ['people' => 'exact'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    private array $resolvedRoles = [];
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
@@ -102,10 +118,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read'])]
     private People $people;
 
-    #[ORM\Column(name: 'timezone_id', type: 'smallint', nullable: true, options: ['unsigned' => true])]
+    #[ORM\ManyToOne(targetEntity: Timezone::class)]
+    #[ORM\JoinColumn(name: 'timezone_id', referencedColumnName: 'id', nullable: true)]
     #[Groups(['user:read', 'user:write'])]
-    #[SerializedName('timezone_id')]
-    private ?int $timezoneId = null;
+    private ?Timezone $timezone = null;
 
     public function __construct()
     {
@@ -140,7 +156,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getRoles(): array
     {
-        return ['ROLE_CLIENT'];
+        return array_values(array_unique($this->resolvedRoles));
+    }
+
+    public function setResolvedRoles(array $roles): self
+    {
+        $this->resolvedRoles = array_values(array_unique(array_filter($roles)));
+
+        return $this;
     }
 
     public function getSalt(): ?string
@@ -208,16 +231,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->people;
     }
 
-    public function setTimezoneId(?int $timezoneId): self
+    public function setTimezone(?Timezone $timezone): self
     {
-        $this->timezoneId = $timezoneId;
+        $this->timezone = $timezone;
 
         return $this;
     }
 
-    public function getTimezoneId(): ?int
+    public function getTimezone(): ?Timezone
     {
-        return $this->timezoneId;
+        return $this->timezone;
     }
 
     public function setLostPassword(?string $hash): self

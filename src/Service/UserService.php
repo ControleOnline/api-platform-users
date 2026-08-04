@@ -1,10 +1,46 @@
 <?php
 
+/*
+ * Contract imported from AGENTS.md
+ * ## Escopo
+ * - Modulo de usuarios e autenticacao.
+ * - Cobre `User`, recuperacao de senha, troca de senha, API key, autenticacao e seguranca.
+ *
+ * ## Quando usar
+ * - Prompts sobre login backend, seguranca, token, usuario, senha, autenticador e fluxo de acesso.
+ *
+ * ## Regras de autenticacao
+ * - `User` nao e a fonte de verdade dos roles; ele so carrega os roles resolvidos em runtime.
+ * - Token e sessao devem usar a mesma resolucao de roles baseada em `people_link`.
+ * - `ROLE_HUMAN` e apenas um agregador para guardas de entrada da API; ele nao deve ser persistido no usuario.
+ * - `ROLE_SUPER` so aparece quando a pessoa autenticada for `owner` da empresa principal.
+ * - Preferencias operacionais do login que pertencem ao usuario autenticado, como fuso horario, devem ficar em `User` e sair no payload de sessao/login.
+ *
+ * ## Integracao com `people`
+ * - A resolucao de roles vem de `PeopleRoleService`.
+ * - `users` nao deve duplicar regra de vinculo, cadeia comercial ou escopo por empresa.
+ * - `client`, `provider` e `franchisee` podem existir no token se vierem de vinculos diretos, mas nao substituem role humana operacional.
+ *
+ * ## Regras de autorizacao para `UserService`
+ * - `UserService` deve ter `securityFilter` explicito ou mecanismo equivalente com efeito comprovavel para leitura e escrita de `User`.
+ * - Filtro por query string, como `people=/people/{id}`, nao conta como autorizacao; o service precisa validar o escopo da pessoa autenticada sobre a entidade alvo.
+ * - Ler `User` ou colecoes de `User` so e permitido para o proprio usuario ou para operador administrativo autorizado sobre a mesma pessoa/empresa; username, email e `apiKey` sao dados sensiveis.
+ * - Criar usuario para uma `people`, trocar senha, renovar `apiKey` ou remover usuario so e permitido para operador autorizado sobre a `people` alvo. Receber `people` ou `user id` do cliente nunca e suficiente por si so.
+ * - Fluxo de autoatendimento pode permitir troca de senha do proprio usuario autenticado, mas isso deve ser separado do fluxo administrativo e continuar restrito ao proprio titular.
+ * - A exposicao de `apiKey` em resposta de leitura exige a mesma autorizacao forte do fluxo de renovacao; nao pode ficar acessivel a qualquer `ROLE_HUMAN`.
+ *
+ * ## Limites
+ * - Dados cadastrais de pessoa e empresa pertencem a `people`.
+ * - Recorte de dados por empresa deve ficar nos `securityFilter` dos services de dominio.
+ */
+
+
 namespace ControleOnline\Service;
 
 use ControleOnline\Entity\Email;
 use ControleOnline\Entity\Language;
 use ControleOnline\Entity\People;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -16,7 +52,8 @@ class UserService
     public function __construct(
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
-        private FileService $fileService
+        private FileService $fileService,
+        private PeopleRoleService $peopleRoleService,
     ) {}
 
     public function changePassword(User $user, $password)
@@ -74,6 +111,10 @@ class UserService
 
     public function getUserSession(User $user)
     {
+        $user->setResolvedRoles(
+            $this->peopleRoleService->getGrantedRoles($user->getPeople())
+        );
+
         $email = '';
         $code = '';
         $number = '';
@@ -90,6 +131,7 @@ class UserService
 
         return [
             'id' => $user->getPeople()->getId(),
+            'user_id' => $user->getId(),
             'username' => $user->getUsername(),
             'name' => $user->getPeople()->getName(),
             'alias' => $user->getPeople()->getAlias(),
@@ -97,8 +139,9 @@ class UserService
             'roles' => $user->getRoles(),
             'api_key' => $user->getApiKey(),
             'people' => $user->getPeople()->getId(),
-            'timezone_id' => $user->getTimezoneId(),
             'language' => $user->getPeople()->getLanguage()?->getLanguage(),
+            'timezone' => $user->getTimezone()?->getName(),
+            'timezone_id' => $user->getTimezone()?->getId(),
             'mycompany' => $this->getCompanyId($user),
             'realname' => $this->getUserRealName($user->getPeople()),
             'avatar' => $this->fileService->getFileUrl($user->getPeople()),
@@ -204,6 +247,26 @@ class UserService
         );
     }
 
+    public function updatePreferencesFromContent(User $user, ?string $content): User
+    {
+        $payload = $this->decodePayload($content);
+
+        if (
+            !array_key_exists('timezone', $payload) &&
+            !array_key_exists('timezone_id', $payload) &&
+            !array_key_exists('timezoneId', $payload)
+        ) {
+            throw new BadRequestHttpException('timezone is required');
+        }
+
+        $user->setTimezone($this->resolveTimezoneFromPayload($payload));
+
+        $this->manager->persist($user);
+        $this->manager->flush();
+
+        return $user;
+    }
+
     public function deleteUser(People $person, int $userId): bool
     {
         try {
@@ -274,6 +337,44 @@ class UserService
         return true;
     }
 
+    private function resolveTimezoneFromPayload(array $payload): ?Timezone
+    {
+        $rawTimezone =
+            $payload['timezone'] ??
+            $payload['timezone_id'] ??
+            $payload['timezoneId'] ??
+            null;
+
+        if ($rawTimezone === null || $rawTimezone === '') {
+            return null;
+        }
+
+        $timezoneId = $this->extractTimezoneId($rawTimezone);
+        if ($timezoneId !== null) {
+            $timezone = $this->manager->getRepository(Timezone::class)->find($timezoneId);
+            if (!$timezone instanceof Timezone) {
+                throw new BadRequestHttpException('timezone not found');
+            }
+
+            return $timezone;
+        }
+
+        $timezoneName = $this->extractTimezoneName($rawTimezone);
+        if ($timezoneName === '') {
+            throw new BadRequestHttpException('timezone is invalid');
+        }
+
+        $timezone = $this->manager->getRepository(Timezone::class)->findOneBy([
+            'name' => $timezoneName,
+        ]);
+
+        if (!$timezone instanceof Timezone) {
+            throw new BadRequestHttpException('timezone not found');
+        }
+
+        return $timezone;
+    }
+
     private function decodePayload(?string $content): array
     {
         if (!is_string($content) || trim($content) === '') {
@@ -283,5 +384,69 @@ class UserService
         $decoded = json_decode($content, true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function extractTimezoneId(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value > 0 ? $value : null;
+        }
+
+        if (is_array($value)) {
+            $nestedValue =
+                $value['id'] ??
+                $value['@id'] ??
+                $value['timezone_id'] ??
+                $value['timezoneId'] ??
+                null;
+
+            return $this->extractTimezoneId($nestedValue);
+        }
+
+        if (is_object($value)) {
+            return $this->extractTimezoneId(get_object_vars($value));
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalizedValue = trim($value);
+        if ($normalizedValue === '') {
+            return null;
+        }
+
+        if (preg_match('#^/timezones/(\d+)$#', $normalizedValue, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('#^\d+$#', $normalizedValue)) {
+            return (int) $normalizedValue;
+        }
+
+        return null;
+    }
+
+    private function extractTimezoneName(mixed $value): string
+    {
+        if (is_array($value)) {
+            $nestedValue = $value['name'] ?? $value['timezone'] ?? '';
+
+            return $this->extractTimezoneName($nestedValue);
+        }
+
+        if (is_object($value)) {
+            return $this->extractTimezoneName(get_object_vars($value));
+        }
+
+        if (!is_string($value)) {
+            return '';
+        }
+
+        $normalizedValue = trim($value);
+
+        return $this->extractTimezoneId($normalizedValue) === null
+            ? $normalizedValue
+            : '';
     }
 }
