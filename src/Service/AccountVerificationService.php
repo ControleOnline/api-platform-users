@@ -197,6 +197,11 @@ class AccountVerificationService
         );
     }
 
+    /**
+     * Resolve frontend base URL for email links.
+     * Prefer tenant request domain (app-domain / Origin / Referer) over global ENV
+     * so multi-tenant apps receive correct confirmation links.
+     */
     private function resolvePublicAppUrl(): string
     {
         $requestDomain = '';
@@ -222,9 +227,16 @@ class AccountVerificationService
 
         $requestDomain = trim((string) $requestDomain);
         $configuredDomain = trim((string) $configuredDomain);
-        $domain = $configuredDomain !== ''
-            ? $configuredDomain
-            : $requestDomain;
+
+        // Tenant/request domain first; ENV is fallback only.
+        $domain = $requestDomain !== ''
+            ? $requestDomain
+            : $configuredDomain;
+
+        // If request resolved to an API host, prefer a non-API configured frontend.
+        if ($this->looksLikeApiHost($domain) && $configuredDomain !== '' && !$this->looksLikeApiHost($configuredDomain)) {
+            $domain = $configuredDomain;
+        }
 
         if ($domain === '') {
             $domain = 'admin.controleonline.com';
@@ -235,6 +247,16 @@ class AccountVerificationService
         }
 
         return rtrim($domain, '/');
+    }
+
+    private function looksLikeApiHost(string $domain): bool
+    {
+        $host = preg_replace('#^https?://#i', '', $domain) ?? $domain;
+        $host = strtolower((string) explode('/', $host)[0]);
+        $host = explode(':', $host)[0];
+
+        return $host === 'api.controleonline.com'
+            || str_starts_with($host, 'api.');
     }
 
 }
