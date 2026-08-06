@@ -328,9 +328,21 @@ class PasswordRecoveryService
         );
     }
 
+    /**
+     * Resolve frontend base URL for email links.
+     * Prefer tenant request domain (app-domain / Origin / Referer) over global ENV
+     * so multi-tenant apps receive correct reset links.
+     */
     private function resolvePublicAppUrl(): string
     {
-        $domain = $_ENV['PUBLIC_APP_DOMAIN']
+        $requestDomain = '';
+        try {
+            $requestDomain = (string) $this->domainService->getDomain();
+        } catch (\Throwable) {
+            $requestDomain = '';
+        }
+
+        $configuredDomain = $_ENV['PUBLIC_APP_DOMAIN']
             ?? $_ENV['MANAGER_APP']
             ?? $_ENV['APP_DOMAIN']
             ?? $_ENV['ADMIN_APP_DOMAIN']
@@ -344,15 +356,19 @@ class PasswordRecoveryService
             ?? getenv('ADMIN_APP_DOMAIN')
             ?? '';
 
-        if ($domain === '') {
-            try {
-                $domain = (string) $this->domainService->getDomain();
-            } catch (\Throwable) {
-                $domain = '';
-            }
+        $requestDomain = trim((string) $requestDomain);
+        $configuredDomain = trim((string) $configuredDomain);
+
+        // Tenant/request domain first; ENV is fallback only.
+        $domain = $requestDomain !== ''
+            ? $requestDomain
+            : $configuredDomain;
+
+        // If request resolved to an API host, prefer a non-API configured frontend.
+        if ($this->looksLikeApiHost($domain) && $configuredDomain !== '' && !$this->looksLikeApiHost($configuredDomain)) {
+            $domain = $configuredDomain;
         }
 
-        $domain = trim((string) $domain);
         if ($domain === '') {
             $domain = 'admin.controleonline.com';
         }
@@ -362,5 +378,15 @@ class PasswordRecoveryService
         }
 
         return rtrim($domain, '/');
+    }
+
+    private function looksLikeApiHost(string $domain): bool
+    {
+        $host = preg_replace('#^https?://#i', '', $domain) ?? $domain;
+        $host = strtolower((string) explode('/', $host)[0]);
+        $host = explode(':', $host)[0];
+
+        return $host === 'api.controleonline.com'
+            || str_starts_with($host, 'api.');
     }
 }
