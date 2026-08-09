@@ -17,7 +17,7 @@ class PasswordRecoveryService
         private EntityManagerInterface $manager,
         private EmailService $emailService,
         private UserService $userService,
-        private DomainService $domainService,
+        private PublicAppUrlResolver $publicAppUrlResolver,
         private ?ValidatorInterface $validator = null
     ) {}
 
@@ -335,58 +335,6 @@ class PasswordRecoveryService
      */
     private function resolvePublicAppUrl(): string
     {
-        $requestDomain = '';
-        try {
-            $requestDomain = (string) $this->domainService->getDomain();
-        } catch (\Throwable) {
-            $requestDomain = '';
-        }
-
-        $configuredDomain = $_ENV['PUBLIC_APP_DOMAIN']
-            ?? $_ENV['MANAGER_APP']
-            ?? $_ENV['APP_DOMAIN']
-            ?? $_ENV['ADMIN_APP_DOMAIN']
-            ?? $_SERVER['PUBLIC_APP_DOMAIN']
-            ?? $_SERVER['MANAGER_APP']
-            ?? $_SERVER['APP_DOMAIN']
-            ?? $_SERVER['ADMIN_APP_DOMAIN']
-            ?? getenv('PUBLIC_APP_DOMAIN')
-            ?? getenv('MANAGER_APP')
-            ?? getenv('APP_DOMAIN')
-            ?? getenv('ADMIN_APP_DOMAIN')
-            ?? '';
-
-        $requestDomain = trim((string) $requestDomain);
-        $configuredDomain = trim((string) $configuredDomain);
-
-        // Tenant/request domain first; ENV is fallback only.
-        $domain = $requestDomain !== ''
-            ? $requestDomain
-            : $configuredDomain;
-
-        // If request resolved to an API host, prefer a non-API configured frontend.
-        if ($this->looksLikeApiHost($domain) && $configuredDomain !== '' && !$this->looksLikeApiHost($configuredDomain)) {
-            $domain = $configuredDomain;
-        }
-
-        if ($domain === '') {
-            $domain = 'admin.controleonline.com';
-        }
-
-        if (!preg_match('#^https?://#i', $domain)) {
-            $domain = 'https://' . ltrim($domain, '/');
-        }
-
-        return rtrim($domain, '/');
-    }
-
-    private function looksLikeApiHost(string $domain): bool
-    {
-        $host = preg_replace('#^https?://#i', '', $domain) ?? $domain;
-        $host = strtolower((string) explode('/', $host)[0]);
-        $host = explode(':', $host)[0];
-
-        return $host === 'api.controleonline.com'
-            || str_starts_with($host, 'api.');
+        return $this->publicAppUrlResolver->resolve();
     }
 }
