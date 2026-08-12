@@ -17,7 +17,7 @@ class PasswordRecoveryService
         private EntityManagerInterface $manager,
         private EmailService $emailService,
         private UserService $userService,
-        private DomainService $domainService,
+        private PublicAppUrlResolver $publicAppUrlResolver,
         private ?ValidatorInterface $validator = null
     ) {}
 
@@ -303,13 +303,12 @@ class PasswordRecoveryService
 
         return sprintf(
             '<div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
-                <h2 style="margin-bottom: 12px;">Recuperação de senha</h2>
-                <p>Olá, %s.</p>
-                <p>Recebemos uma solicitação para redefinir a sua senha.</p>
-                <p>Use o link temporário abaixo para cadastrar uma nova senha:</p>
-                <p><a href="%s">Redefinir senha</a></p>
-                <p>Se você não solicitou a recuperação, basta ignorar este e-mail.</p>
-                <p style="font-size: 12px; color: #64748b;">Se o botão não funcionar, copie e cole este endereço no navegador: %s</p>
+                <h2 style="margin-bottom: 12px;">Recuperacao de senha</h2>
+                <p>Ola, %s.</p>
+                <p>Recebemos uma solicitacao para redefinir a sua senha.</p>
+                <p>Use o link temporario abaixo para cadastrar uma nova senha:</p>
+                <p><a href="%s">%s</a></p>
+                <p>Se voce nao solicitou a recuperacao, basta ignorar este e-mail.</p>
             </div>',
             $name,
             $link,
@@ -329,44 +328,13 @@ class PasswordRecoveryService
         );
     }
 
+    /**
+     * Resolve frontend base URL for email links.
+     * Prefer tenant request domain (app-domain / Origin / Referer) over global ENV
+     * so multi-tenant apps receive correct reset links.
+     */
     private function resolvePublicAppUrl(): string
     {
-        $requestDomain = '';
-        try {
-            $requestDomain = (string) $this->domainService->getDomain();
-        } catch (\Throwable) {
-            $requestDomain = '';
-        }
-
-        $configuredDomain = $_ENV['PUBLIC_APP_DOMAIN']
-            ?? $_ENV['MANAGER_APP']
-            ?? $_ENV['APP_DOMAIN']
-            ?? $_ENV['ADMIN_APP_DOMAIN']
-            ?? $_SERVER['PUBLIC_APP_DOMAIN']
-            ?? $_SERVER['MANAGER_APP']
-            ?? $_SERVER['APP_DOMAIN']
-            ?? $_SERVER['ADMIN_APP_DOMAIN']
-            ?? getenv('PUBLIC_APP_DOMAIN')
-            ?? getenv('MANAGER_APP')
-            ?? getenv('APP_DOMAIN')
-            ?? getenv('ADMIN_APP_DOMAIN')
-            ?? '';
-
-        $requestDomain = trim((string) $requestDomain);
-        $configuredDomain = trim((string) $configuredDomain);
-        $domain = $configuredDomain !== ''
-            ? $configuredDomain
-            : $requestDomain;
-
-        if ($domain === '') {
-            $domain = 'admin.controleonline.com';
-        }
-
-        if (!preg_match('#^https?://#i', $domain)) {
-            $domain = 'https://' . ltrim($domain, '/');
-        }
-
-        return rtrim($domain, '/');
+        return $this->publicAppUrlResolver->resolve();
     }
-
 }
