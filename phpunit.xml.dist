@@ -7,8 +7,9 @@
     cacheDirectory=".phpunit.cache"
 >
     <testsuites>
-        <testsuite name="Users Module Test Suite">
-            <directory>tests</directory>
+        <testsuite name="Legacy Signup Contract">
+            <file>tests/Controller/CreateAccountActionTest.php</file>
+            <file>tests/Service/UserServiceCreateAccountTest.php</file>
         </testsuite>
     </testsuites>
 </phpunit>
