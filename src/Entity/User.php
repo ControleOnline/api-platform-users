@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\Put;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
+use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
 use ControleOnline\Controller\SecurityController;
 use ControleOnline\Controller\UpdateUserPreferencesAction;
@@ -38,6 +39,14 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/users',
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+        ),
+        new Post(
+            uriTemplate: '/users/create-account',
+            controller: CreateAccountAction::class,
+            securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
+            security: 'is_granted(\'PUBLIC_ACCESS\')',
+            deserialize: false,
+            read: false,
         ),
         new Put(
             security: 'is_granted(\'ROLE_CLIENT\') and object == user',
