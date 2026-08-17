@@ -22,7 +22,7 @@ jobs:
         run: composer validate --no-check-publish
 
       - name: Install test dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-source
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit
