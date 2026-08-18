@@ -49,6 +49,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class UserService
 {
+    private const DEFAULT_TIMEZONE_NAME = 'America/Sao_Paulo';
+
     public function __construct(
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
@@ -198,7 +200,7 @@ class UserService
         return $people;
     }
 
-    public function createUser(People $people, $username, $password)
+    public function createUser(People $people, $username, $password, ?Timezone $timezone = null)
     {
         if (!$this->getPermission()) {
             throw new Exception("You should not pass!!!", 301);
@@ -217,6 +219,7 @@ class UserService
         $user->setPeople($people);
         $user->setHash($this->passwordHasher->hashPassword($user, $password));
         $user->setUsername($username);
+        $user->setTimezone($timezone ?? $this->resolveDefaultTimezone());
 
         $this->manager->persist($user);
         $this->manager->flush();
@@ -243,7 +246,8 @@ class UserService
         return $this->createUser(
             $people,
             $payload['username'],
-            $payload['password']
+            $payload['password'],
+            $this->resolveTimezoneForUserCreate($payload)
         );
     }
 
@@ -370,6 +374,35 @@ class UserService
 
         if (!$timezone instanceof Timezone) {
             throw new BadRequestHttpException('timezone not found');
+        }
+
+        return $timezone;
+    }
+
+    private function resolveTimezoneForUserCreate(array $payload): Timezone
+    {
+        if (
+            array_key_exists('timezone', $payload) ||
+            array_key_exists('timezone_id', $payload) ||
+            array_key_exists('timezoneId', $payload)
+        ) {
+            $timezone = $this->resolveTimezoneFromPayload($payload);
+            if ($timezone instanceof Timezone) {
+                return $timezone;
+            }
+        }
+
+        return $this->resolveDefaultTimezone();
+    }
+
+    private function resolveDefaultTimezone(): Timezone
+    {
+        $repository = $this->manager->getRepository(Timezone::class);
+        $timezone = $repository->findOneBy(['name' => self::DEFAULT_TIMEZONE_NAME])
+            ?: $repository->findOneBy(['name' => 'UTC']);
+
+        if (!$timezone instanceof Timezone) {
+            throw new BadRequestHttpException('timezone is required');
         }
 
         return $timezone;

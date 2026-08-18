@@ -137,18 +137,128 @@ class UserServiceTest extends TestCase
         self::assertNull($updatedUser->getTimezone());
     }
 
+    public function testCreateUserFromContentPersistsExplicitTimezone(): void
+    {
+        $people = $this->createMock(People::class);
+        $timezone = $this->createTimezone(12, 'America/Sao_Paulo');
+        $userRepository = $this->createMock(EntityRepository::class);
+        $userRepository
+            ->expects(self::once())
+            ->method('findOneBy')
+            ->with(['username' => 'operator@example.com'])
+            ->willReturn(null);
+
+        $peopleRepository = $this->createMock(EntityRepository::class);
+        $peopleRepository
+            ->expects(self::once())
+            ->method('find')
+            ->with(7)
+            ->willReturn($people);
+
+        $timezoneRepository = $this->createMock(EntityRepository::class);
+        $timezoneRepository
+            ->expects(self::once())
+            ->method('find')
+            ->with(12)
+            ->willReturn($timezone);
+
+        $manager = $this->managerForCreateUser(
+            $userRepository,
+            $peopleRepository,
+            $timezoneRepository,
+        );
+        $service = $this->buildService($manager);
+
+        $createdUser = $service->createUserFromContent(json_encode([
+            'people' => 7,
+            'username' => 'operator@example.com',
+            'password' => 'secret',
+            'timezone' => '/timezones/12',
+        ]));
+
+        self::assertSame($timezone, $createdUser->getTimezone());
+    }
+
+    public function testCreateUserFromContentDefaultsTimezoneWhenMissing(): void
+    {
+        $people = $this->createMock(People::class);
+        $timezone = $this->createTimezone(12, 'America/Sao_Paulo');
+        $userRepository = $this->createMock(EntityRepository::class);
+        $userRepository
+            ->expects(self::once())
+            ->method('findOneBy')
+            ->with(['username' => 'operator@example.com'])
+            ->willReturn(null);
+
+        $peopleRepository = $this->createMock(EntityRepository::class);
+        $peopleRepository
+            ->expects(self::once())
+            ->method('find')
+            ->with(7)
+            ->willReturn($people);
+
+        $timezoneRepository = $this->createMock(EntityRepository::class);
+        $timezoneRepository
+            ->expects(self::once())
+            ->method('findOneBy')
+            ->with(['name' => 'America/Sao_Paulo'])
+            ->willReturn($timezone);
+
+        $manager = $this->managerForCreateUser(
+            $userRepository,
+            $peopleRepository,
+            $timezoneRepository,
+        );
+        $service = $this->buildService($manager);
+
+        $createdUser = $service->createUserFromContent(json_encode([
+            'people' => 7,
+            'username' => 'operator@example.com',
+            'password' => 'secret',
+        ]));
+
+        self::assertSame($timezone, $createdUser->getTimezone());
+    }
+
     private function buildService(
         EntityManagerInterface $manager,
         ?FileService $fileService = null,
         ?PeopleRoleService $peopleRoleService = null,
     ): UserService
     {
+        $passwordHasher = $this->createMock(UserPasswordHasherInterface::class);
+        $passwordHasher
+            ->method('hashPassword')
+            ->willReturn('hashed-password');
+
         return new UserService(
             $manager,
-            $this->createMock(UserPasswordHasherInterface::class),
+            $passwordHasher,
             $fileService ?? $this->createMock(FileService::class),
             $peopleRoleService ?? $this->createMock(PeopleRoleService::class),
         );
+    }
+
+    private function managerForCreateUser(
+        EntityRepository $userRepository,
+        EntityRepository $peopleRepository,
+        EntityRepository $timezoneRepository,
+    ): EntityManagerInterface
+    {
+        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager
+            ->method('getRepository')
+            ->willReturnCallback(
+                fn (string $class) => match ($class) {
+                    User::class => $userRepository,
+                    People::class => $peopleRepository,
+                    Timezone::class => $timezoneRepository,
+                }
+            );
+        $manager->expects(self::once())->method('persist');
+        $manager->expects(self::once())->method('flush');
+
+        return $manager;
     }
 
     private function createTimezone(int $id, string $name): Timezone
