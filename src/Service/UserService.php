@@ -278,6 +278,11 @@ class UserService
 
     public function securityFilter(QueryBuilder $queryBuilder, $resourceClass = null, $applyTo = null, $rootAlias = null): void
     {
+        $tokenUser = $this->security->getToken()?->getUser();
+        if (is_object($tokenUser) && method_exists($tokenUser, 'getRoles') && in_array('ROLE_SUPER', $tokenUser->getRoles() ?: [], true)) {
+            return;
+        }
+
         $myPeople = $this->getMyPeople();
         $managedCompanyIds = array_map(
             static fn(People $company): int => (int) $company->getId(),
@@ -383,6 +388,11 @@ class UserService
 
     private function canManagePeople(People $people): bool
     {
+        $tokenUser = $this->security->getToken()?->getUser();
+        if (is_object($tokenUser) && method_exists($tokenUser, 'getRoles') && in_array('ROLE_SUPER', $tokenUser->getRoles() ?: [], true)) {
+            return true;
+        }
+
         $myPeople = $this->getMyPeople();
         if (!$myPeople instanceof People) {
             return false;
