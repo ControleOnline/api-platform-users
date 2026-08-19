@@ -55,6 +55,19 @@ class DefaultClientController extends AbstractController
                 ''
             );
 
+            $people = $user->getPeople();
+            if ($people === null || !$people->getEnabled()) {
+                return new JsonResponse([
+                    'response' => [
+                        'data'    => [],
+                        'count'   => 0,
+                        'error'   => 'Usuário desativado',
+                        'code'    => 'USER_DISABLED',
+                        'success' => false,
+                    ],
+                ], 403);
+            }
+
             $data = $this->userService->getUserSession($user);
 
             return new JsonResponse([
