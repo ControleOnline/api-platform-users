@@ -49,8 +49,6 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class UserService
 {
-    private const DEFAULT_TIMEZONE_NAME = 'America/Sao_Paulo';
-
     public function __construct(
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
@@ -113,8 +111,15 @@ class UserService
 
     public function getUserSession(User $user)
     {
+        $people = $user->getPeople();
+        if ($people === null || !((int) $people->getEnabled() === 1)) {
+            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException(
+                'Usuário desativado'
+            );
+        }
+
         $user->setResolvedRoles(
-            $this->peopleRoleService->getGrantedRoles($user->getPeople())
+            $this->peopleRoleService->getGrantedRoles($people)
         );
 
         $email = '';
@@ -151,45 +156,6 @@ class UserService
             'phone' => sprintf('%s%s', $code, $number),
             'active' => (int) $user->getPeople()->getEnabled(),
         ];
-    }
-
-    public function createAccountSessionFromContent(?string $content): array
-    {
-        return $this->getUserSession(
-            $this->createAccountUserFromPayload(
-                $this->decodeStrictPayload($content)
-            )
-        );
-    }
-
-    public function createAccountUserFromPayload(array $payload): User
-    {
-        foreach (['name', 'email', 'password'] as $field) {
-            if (!isset($payload[$field]) || trim((string) $payload[$field]) === '') {
-                throw new BadRequestHttpException('name, email and password are required');
-            }
-        }
-
-        if (
-            isset($payload['confirmPassword']) &&
-            (string) $payload['confirmPassword'] !== (string) $payload['password']
-        ) {
-            throw new BadRequestHttpException('password confirmation does not match');
-        }
-
-        [$firstName, $lastName] = $this->splitName((string) $payload['name']);
-
-        $people = $this->discoveryPeople(
-            (string) $payload['email'],
-            $firstName,
-            $lastName
-        );
-
-        return $this->createUser(
-            $people,
-            (string) $payload['email'],
-            (string) $payload['password']
-        );
     }
 
     private function getUserRealName(People $people): string
@@ -239,7 +205,7 @@ class UserService
         return $people;
     }
 
-    public function createUser(People $people, $username, $password, ?Timezone $timezone = null)
+    public function createUser(People $people, $username, $password)
     {
         if (!$this->getPermission()) {
             throw new Exception("You should not pass!!!", 301);
@@ -258,7 +224,6 @@ class UserService
         $user->setPeople($people);
         $user->setHash($this->passwordHasher->hashPassword($user, $password));
         $user->setUsername($username);
-        $user->setTimezone($timezone ?? $this->resolveDefaultTimezone());
 
         $this->manager->persist($user);
         $this->manager->flush();
@@ -285,8 +250,7 @@ class UserService
         return $this->createUser(
             $people,
             $payload['username'],
-            $payload['password'],
-            $this->resolveTimezoneForUserCreate($payload)
+            $payload['password']
         );
     }
 
@@ -418,35 +382,6 @@ class UserService
         return $timezone;
     }
 
-    private function resolveTimezoneForUserCreate(array $payload): Timezone
-    {
-        if (
-            array_key_exists('timezone', $payload) ||
-            array_key_exists('timezone_id', $payload) ||
-            array_key_exists('timezoneId', $payload)
-        ) {
-            $timezone = $this->resolveTimezoneFromPayload($payload);
-            if ($timezone instanceof Timezone) {
-                return $timezone;
-            }
-        }
-
-        return $this->resolveDefaultTimezone();
-    }
-
-    private function resolveDefaultTimezone(): Timezone
-    {
-        $repository = $this->manager->getRepository(Timezone::class);
-        $timezone = $repository->findOneBy(['name' => self::DEFAULT_TIMEZONE_NAME])
-            ?: $repository->findOneBy(['name' => 'UTC']);
-
-        if (!$timezone instanceof Timezone) {
-            throw new BadRequestHttpException('timezone is required');
-        }
-
-        return $timezone;
-    }
-
     private function decodePayload(?string $content): array
     {
         if (!is_string($content) || trim($content) === '') {
@@ -456,34 +391,6 @@ class UserService
         $decoded = json_decode($content, true);
 
         return is_array($decoded) ? $decoded : [];
-    }
-
-    private function decodeStrictPayload(?string $content): array
-    {
-        if (!is_string($content) || trim($content) === '') {
-            return [];
-        }
-
-        $decoded = json_decode($content, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new BadRequestHttpException('invalid json payload');
-        }
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    private function splitName(string $name): array
-    {
-        $name = trim((string) preg_replace('/\s+/', ' ', $name));
-
-        if ($name === '') {
-            return ['', ''];
-        }
-
-        $parts = explode(' ', $name, 2);
-
-        return [$parts[0], $parts[1] ?? ''];
     }
 
     private function extractTimezoneId(mixed $value): ?int
