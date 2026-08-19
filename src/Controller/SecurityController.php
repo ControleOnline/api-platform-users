@@ -5,6 +5,7 @@ namespace ControleOnline\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use ControleOnline\Entity\User;
 use ControleOnline\Entity\People;
 use ControleOnline\Service\PeopleRoleService;
@@ -27,10 +28,19 @@ class SecurityController extends AbstractController
      */
     $user = $this->getUser();
 
-    if ($user === null)
+    if ($user === null) {
       return $this->json([
         'error' => 'User not found'
-      ]);
+      ], Response::HTTP_UNAUTHORIZED);
+    }
+
+    $people = $user->getPeople();
+    if ($people === null || !$people->getEnabled()) {
+      return $this->json([
+        'error' => 'Usuário desativado',
+        'code'  => 'USER_DISABLED',
+      ], Response::HTTP_FORBIDDEN);
+    }
 
     return $this->json($this->userService->getUserSession($user));
 
