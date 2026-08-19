@@ -35,7 +35,7 @@ class SecurityController extends AbstractController
     }
 
     $people = $user->getPeople();
-    if ($people === null || !$people->getEnabled()) {
+    if ($people === null || !((int) $people->getEnabled() === 1)) {
       return $this->json([
         'error' => 'Usuário desativado',
         'code'  => 'USER_DISABLED',
