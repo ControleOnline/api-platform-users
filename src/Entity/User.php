@@ -38,16 +38,9 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Post(
             uriTemplate: '/users',
             controller: CreateUserAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
-        new Post(
-            uriTemplate: '/users/create-account',
-            controller: CreateAccountAction::class,
-            securityPostDenormalize: 'is_granted(\'PUBLIC_ACCESS\')',
-            security: 'is_granted(\'PUBLIC_ACCESS\')',
-            deserialize: false,
-            read: false,
-        ),
+
         new Put(
             security: 'is_granted(\'ROLE_CLIENT\') and object == user',
             requirements: ['id' => '\d+'],
