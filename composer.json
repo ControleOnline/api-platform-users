@@ -9,11 +9,6 @@
             "ControleOnline\\Controller\\": "src/Controller/"
         }
     },
-    "autoload-dev": {
-        "psr-4": {
-            "ControleOnline\\Users\\Tests\\": "tests/"
-        }
-    },
     "authors": [
         {
             "name": "Controle Online",

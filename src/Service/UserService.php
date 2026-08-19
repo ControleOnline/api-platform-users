@@ -1,66 +1,39 @@
 <?php
 
-/*
- * Contract imported from AGENTS.md
- * ## Escopo
- * - Modulo de usuarios e autenticacao.
- * - Cobre `User`, recuperacao de senha, troca de senha, API key, autenticacao e seguranca.
- *
- * ## Quando usar
- * - Prompts sobre login backend, seguranca, token, usuario, senha, autenticador e fluxo de acesso.
- *
- * ## Regras de autenticacao
- * - `User` nao e a fonte de verdade dos roles; ele so carrega os roles resolvidos em runtime.
- * - Token e sessao devem usar a mesma resolucao de roles baseada em `people_link`.
- * - `ROLE_HUMAN` e apenas um agregador para guardas de entrada da API; ele nao deve ser persistido no usuario.
- * - `ROLE_SUPER` so aparece quando a pessoa autenticada for `owner` da empresa principal.
- * - Preferencias operacionais do login que pertencem ao usuario autenticado, como fuso horario, devem ficar em `User` e sair no payload de sessao/login.
- *
- * ## Integracao com `people`
- * - A resolucao de roles vem de `PeopleRoleService`.
- * - `users` nao deve duplicar regra de vinculo, cadeia comercial ou escopo por empresa.
- * - `client`, `provider` e `franchisee` podem existir no token se vierem de vinculos diretos, mas nao substituem role humana operacional.
- *
- * ## Regras de autorizacao para `UserService`
- * - `UserService` deve ter `securityFilter` explicito ou mecanismo equivalente com efeito comprovavel para leitura e escrita de `User`.
- * - Filtro por query string, como `people=/people/{id}`, nao conta como autorizacao; o service precisa validar o escopo da pessoa autenticada sobre a entidade alvo.
- * - Ler `User` ou colecoes de `User` so e permitido para o proprio usuario ou para operador administrativo autorizado sobre a mesma pessoa/empresa; username, email e `apiKey` sao dados sensiveis.
- * - Criar usuario para uma `people`, trocar senha, renovar `apiKey` ou remover usuario so e permitido para operador autorizado sobre a `people` alvo. Receber `people` ou `user id` do cliente nunca e suficiente por si so.
- * - Fluxo de autoatendimento pode permitir troca de senha do proprio usuario autenticado, mas isso deve ser separado do fluxo administrativo e continuar restrito ao proprio titular.
- * - A exposicao de `apiKey` em resposta de leitura exige a mesma autorizacao forte do fluxo de renovacao; nao pode ficar acessivel a qualquer `ROLE_HUMAN`.
- *
- * ## Limites
- * - Dados cadastrais de pessoa e empresa pertencem a `people`.
- * - Recorte de dados por empresa deve ficar nos `securityFilter` dos services de dominio.
- */
-
-
 namespace ControleOnline\Service;
 
 use ControleOnline\Entity\Email;
 use ControleOnline\Entity\Language;
 use ControleOnline\Entity\People;
-use ControleOnline\Entity\Timezone;
+use ControleOnline\Entity\PeopleLink;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Exception;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface as Security;
 
 class UserService
 {
+    private $request;
+
     public function __construct(
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
         private FileService $fileService,
+        private Security $security,
         private PeopleRoleService $peopleRoleService,
-    ) {}
+        private RequestStack $requestStack,
+    ) {
+        $this->request = $requestStack->getCurrentRequest();
+    }
 
     public function changePassword(User $user, $password)
     {
-        if (!$this->getPermission()) {
-            throw new Exception("You should not pass!!!", 301);
-        }
+        $this->denyUnlessCanManagePeople($user->getPeople());
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
         $user->setHash($hashedPassword);
@@ -82,9 +55,7 @@ class UserService
 
     public function changeApiKey(User $user)
     {
-        if (!$this->getPermission()) {
-            throw new Exception("You should not pass!!!", 301);
-        }
+        $this->denyUnlessCanManagePeople($user->getPeople());
 
         $user->generateApiKey();
 
@@ -111,16 +82,8 @@ class UserService
 
     public function getUserSession(User $user)
     {
-        $people = $user->getPeople();
-        if ($people === null || !((int) $people->getEnabled() === 1)) {
-            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException(
-                'Usuário desativado'
-            );
-        }
-
-        $user->setResolvedRoles(
-            $this->peopleRoleService->getGrantedRoles($people)
-        );
+        $resolvedRoles = $this->peopleRoleService->getGrantedRoles($user->getPeople());
+        $user->setResolvedRoles($resolvedRoles);
 
         $email = '';
         $code = '';
@@ -138,17 +101,14 @@ class UserService
 
         return [
             'id' => $user->getPeople()->getId(),
-            'user_id' => $user->getId(),
             'username' => $user->getUsername(),
             'name' => $user->getPeople()->getName(),
             'alias' => $user->getPeople()->getAlias(),
             'nickname' => $user->getPeople()->getAlias(),
-            'roles' => $user->getRoles(),
+            'roles' => $resolvedRoles,
             'api_key' => $user->getApiKey(),
             'people' => $user->getPeople()->getId(),
             'language' => $user->getPeople()->getLanguage()?->getLanguage(),
-            'timezone' => $user->getTimezone()?->getName(),
-            'timezone_id' => $user->getTimezone()?->getId(),
             'mycompany' => $this->getCompanyId($user),
             'realname' => $this->getUserRealName($user->getPeople()),
             'avatar' => $this->fileService->getFileUrl($user->getPeople()),
@@ -207,9 +167,7 @@ class UserService
 
     public function createUser(People $people, $username, $password)
     {
-        if (!$this->getPermission()) {
-            throw new Exception("You should not pass!!!", 301);
-        }
+        $this->denyUnlessCanManagePeople($people);
 
         $user = $this->manager->getRepository(User::class)
             ->findOneBy([
@@ -254,28 +212,10 @@ class UserService
         );
     }
 
-    public function updatePreferencesFromContent(User $user, ?string $content): User
-    {
-        $payload = $this->decodePayload($content);
-
-        if (
-            !array_key_exists('timezone', $payload) &&
-            !array_key_exists('timezone_id', $payload) &&
-            !array_key_exists('timezoneId', $payload)
-        ) {
-            throw new BadRequestHttpException('timezone is required');
-        }
-
-        $user->setTimezone($this->resolveTimezoneFromPayload($payload));
-
-        $this->manager->persist($user);
-        $this->manager->flush();
-
-        return $user;
-    }
-
     public function deleteUser(People $person, int $userId): bool
     {
+        $this->denyUnlessCanManagePeople($person);
+
         try {
             $this->manager->getConnection()->beginTransaction();
 
@@ -336,50 +276,184 @@ class UserService
         return $company ? $company->getId() : null;
     }
 
-    /**
-     * @todo arrumar
-     */
-    private function getPermission()
+    public function securityFilter(QueryBuilder $queryBuilder, $resourceClass = null, $applyTo = null, $rootAlias = null): void
     {
-        return true;
+        $tokenUser = $this->security->getToken()?->getUser();
+        if (is_object($tokenUser) && method_exists($tokenUser, 'getRoles') && in_array('ROLE_SUPER', $tokenUser->getRoles() ?: [], true)) {
+            return;
+        }
+
+        $myPeople = $this->getMyPeople();
+        $managedCompanyIds = array_map(
+            static fn(People $company): int => (int) $company->getId(),
+            array_filter(
+                $this->getManagedCompanies(),
+                fn(People $company): bool => $this->isPeopleEnabled($company)
+            )
+        );
+
+        if (!$myPeople instanceof People && $managedCompanyIds === []) {
+            $queryBuilder->andWhere('1 = 0');
+            return;
+        }
+
+        $peopleAlias = 'user_people';
+        if (!in_array($peopleAlias, $queryBuilder->getAllAliases(), true)) {
+            $queryBuilder->innerJoin(sprintf('%s.people', $rootAlias), $peopleAlias);
+        }
+
+        $peopleLinkAlias = 'user_people_link';
+        if (!in_array($peopleLinkAlias, $queryBuilder->getAllAliases(), true)) {
+            $queryBuilder->leftJoin(
+                PeopleLink::class,
+                $peopleLinkAlias,
+                'WITH',
+                sprintf(
+                    '%s.people = %s.id AND %s.enable = true',
+                    $peopleLinkAlias,
+                    $peopleAlias,
+                    $peopleLinkAlias
+                )
+            );
+        }
+
+        $companyAlias = 'user_people_company';
+        if (!in_array($companyAlias, $queryBuilder->getAllAliases(), true)) {
+            $queryBuilder->leftJoin(
+                sprintf('%s.company', $peopleLinkAlias),
+                $companyAlias,
+                'WITH',
+                sprintf('%s.enabled = true', $companyAlias)
+            );
+        }
+
+        $visibilityConditions = [];
+        if ($myPeople instanceof People) {
+            $visibilityConditions[] = sprintf('%s.id = :myPeopleId', $peopleAlias);
+            $queryBuilder->setParameter('myPeopleId', (int) $myPeople->getId());
+        }
+
+        if ($managedCompanyIds !== []) {
+            $visibilityConditions[] = sprintf('%s.id IN(:managedCompanies)', $companyAlias);
+            $queryBuilder->setParameter('managedCompanies', $managedCompanyIds);
+        }
+
+        if ($visibilityConditions === []) {
+            $queryBuilder->andWhere('1 = 0');
+            return;
+        }
+
+        $queryBuilder->andWhere($queryBuilder->expr()->orX(...$visibilityConditions));
     }
 
-    private function resolveTimezoneFromPayload(array $payload): ?Timezone
+    public function getMyPeople(): ?People
     {
-        $rawTimezone =
-            $payload['timezone'] ??
-            $payload['timezone_id'] ??
-            $payload['timezoneId'] ??
-            null;
-
-        if ($rawTimezone === null || $rawTimezone === '') {
+        $token = $this->security->getToken();
+        if (!$token) {
             return null;
         }
 
-        $timezoneId = $this->extractTimezoneId($rawTimezone);
-        if ($timezoneId !== null) {
-            $timezone = $this->manager->getRepository(Timezone::class)->find($timezoneId);
-            if (!$timezone instanceof Timezone) {
-                throw new BadRequestHttpException('timezone not found');
+        $currentUser = $token->getUser();
+        if (!is_object($currentUser) || !method_exists($currentUser, 'getPeople')) {
+            return null;
+        }
+
+        return $currentUser->getPeople();
+    }
+
+    public function getMyCompanies(): array
+    {
+        return $this->peopleRoleService->getAccessibleCompaniesForPeople(
+            $this->getMyPeople(),
+            PeopleLink::EMPLOYEE_LINK
+        );
+    }
+
+    public function getManagedCompanies(): array
+    {
+        return $this->peopleRoleService->getAccessibleCompaniesForPeople(
+            $this->getMyPeople(),
+            PeopleLink::MANAGER_LINK
+        );
+    }
+
+    private function denyUnlessCanManagePeople(People $people): void
+    {
+        if ($this->canManagePeople($people)) {
+            return;
+        }
+
+        throw new AccessDeniedHttpException('You should not pass!!!');
+    }
+
+    private function canManagePeople(People $people): bool
+    {
+        $tokenUser = $this->security->getToken()?->getUser();
+        if (is_object($tokenUser) && method_exists($tokenUser, 'getRoles') && in_array('ROLE_SUPER', $tokenUser->getRoles() ?: [], true)) {
+            return true;
+        }
+
+        $myPeople = $this->getMyPeople();
+        if (!$myPeople instanceof People) {
+            return false;
+        }
+
+        $targetCompanyIds = $this->getCompanyIdsForPeople($people);
+        if ($targetCompanyIds === []) {
+            return false;
+        }
+
+        $managedCompanyIds = array_map(
+            static fn(People $company): int => (int) $company->getId(),
+            array_filter(
+                $this->getManagedCompanies(),
+                fn(People $company): bool => $this->isPeopleEnabled($company)
+            )
+        );
+
+        if ($managedCompanyIds === []) {
+            return false;
+        }
+
+        return array_intersect($managedCompanyIds, $targetCompanyIds) !== [];
+    }
+
+    private function getCompanyIdsForPeople(People $people): array
+    {
+        $companyIds = [];
+
+        foreach ($people->getLink() as $link) {
+            if (!$link instanceof PeopleLink || !$this->isLinkEnabled($link)) {
+                continue;
             }
 
-            return $timezone;
+            $company = $link->getCompany();
+            if (!$company instanceof People || !$this->isPeopleEnabled($company)) {
+                continue;
+            }
+
+            $companyIds[] = (int) $company->getId();
         }
 
-        $timezoneName = $this->extractTimezoneName($rawTimezone);
-        if ($timezoneName === '') {
-            throw new BadRequestHttpException('timezone is invalid');
+        return array_values(array_unique(array_filter($companyIds)));
+    }
+
+    private function isLinkEnabled(PeopleLink $link): bool
+    {
+        if (!method_exists($link, 'getEnabled')) {
+            return true;
         }
 
-        $timezone = $this->manager->getRepository(Timezone::class)->findOneBy([
-            'name' => $timezoneName,
-        ]);
+        return (bool) $link->getEnabled();
+    }
 
-        if (!$timezone instanceof Timezone) {
-            throw new BadRequestHttpException('timezone not found');
+    private function isPeopleEnabled(People $people): bool
+    {
+        if (!method_exists($people, 'getEnabled')) {
+            return true;
         }
 
-        return $timezone;
+        return (bool) $people->getEnabled();
     }
 
     private function decodePayload(?string $content): array
@@ -391,69 +465,5 @@ class UserService
         $decoded = json_decode($content, true);
 
         return is_array($decoded) ? $decoded : [];
-    }
-
-    private function extractTimezoneId(mixed $value): ?int
-    {
-        if (is_int($value)) {
-            return $value > 0 ? $value : null;
-        }
-
-        if (is_array($value)) {
-            $nestedValue =
-                $value['id'] ??
-                $value['@id'] ??
-                $value['timezone_id'] ??
-                $value['timezoneId'] ??
-                null;
-
-            return $this->extractTimezoneId($nestedValue);
-        }
-
-        if (is_object($value)) {
-            return $this->extractTimezoneId(get_object_vars($value));
-        }
-
-        if (!is_string($value)) {
-            return null;
-        }
-
-        $normalizedValue = trim($value);
-        if ($normalizedValue === '') {
-            return null;
-        }
-
-        if (preg_match('#^/timezones/(\d+)$#', $normalizedValue, $matches)) {
-            return (int) $matches[1];
-        }
-
-        if (preg_match('#^\d+$#', $normalizedValue)) {
-            return (int) $normalizedValue;
-        }
-
-        return null;
-    }
-
-    private function extractTimezoneName(mixed $value): string
-    {
-        if (is_array($value)) {
-            $nestedValue = $value['name'] ?? $value['timezone'] ?? '';
-
-            return $this->extractTimezoneName($nestedValue);
-        }
-
-        if (is_object($value)) {
-            return $this->extractTimezoneName(get_object_vars($value));
-        }
-
-        if (!is_string($value)) {
-            return '';
-        }
-
-        $normalizedValue = trim($value);
-
-        return $this->extractTimezoneId($normalizedValue) === null
-            ? $normalizedValue
-            : '';
     }
 }

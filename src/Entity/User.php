@@ -11,20 +11,18 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
-use ControleOnline\Controller\CreateAccountAction;
 use ControleOnline\Controller\CreateUserAction;
+use ControleOnline\Controller\DeleteUserAction;
 use ControleOnline\Controller\SecurityController;
-use ControleOnline\Controller\UpdateUserPreferencesAction;
 use ControleOnline\Entity\People;
-use ControleOnline\Entity\Timezone;
 use ControleOnline\Repository\UserRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 
@@ -40,30 +38,20 @@ use Symfony\Component\Validator\Constraints as Assert;
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
-
-        new Put(
-            security: 'is_granted(\'ROLE_CLIENT\') and object == user',
-            requirements: ['id' => '\d+'],
+        new Delete(
+            uriTemplate: '/users/{id}',
+            controller: DeleteUserAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
-            requirements: ['id' => '\d+'],
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
-            requirements: ['id' => '\d+'],
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
-        ),
-        new Put(
-            uriTemplate: '/users/preferences',
-            controller: UpdateUserPreferencesAction::class,
-            security: 'is_granted(\'ROLE_HUMAN\')',
-            deserialize: false,
-            read: false,
-            output: false,
         ),
         new Post(
             uriTemplate: '/token',
@@ -72,11 +60,8 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: 'is_granted(\'PUBLIC_ACCESS\')',
 
         ),
-        new Get(
-            security: 'is_granted(\'ROLE_CLIENT\')',
-            requirements: ['id' => '\d+'],
-        ),
-        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+        new Get(security: 'is_granted(\'ROLE_HUMAN\')'),
+        new GetCollection(security: 'is_granted(\'ROLE_HUMAN\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
     normalizationContext: ['groups' => ['user:read']],
@@ -90,11 +75,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false)]
-    #[Groups(['people:read', 'user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write'])]
     #[Assert\NotBlank(message: 'O e-mail é obrigatório.')]
     #[Assert\Email(message: 'O valor "{{ value }}" não é um e-mail válido.')]
     private string $username = '';
@@ -112,18 +97,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $lostPassword = null;
 
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
-    #[Groups(['people:read', 'user:read'])]
+    #[Groups(['user:read'])]
     private string $apiKey = '';
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]
     #[ORM\JoinColumn(name: 'people_id', referencedColumnName: 'id', nullable: false)]
     #[Groups(['user:read'])]
     private People $people;
-
-    #[ORM\ManyToOne(targetEntity: Timezone::class)]
-    #[ORM\JoinColumn(name: 'timezone_id', referencedColumnName: 'id', nullable: true)]
-    #[Groups(['user:read', 'user:write'])]
-    private ?Timezone $timezone = null;
 
     public function __construct()
     {
@@ -231,18 +211,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPeople(): People
     {
         return $this->people;
-    }
-
-    public function setTimezone(?Timezone $timezone): self
-    {
-        $this->timezone = $timezone;
-
-        return $this;
-    }
-
-    public function getTimezone(): ?Timezone
-    {
-        return $this->timezone;
     }
 
     public function setLostPassword(?string $hash): self

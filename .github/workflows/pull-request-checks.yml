@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - task-5
+      - task-95
 
 jobs:
   users-module:
@@ -22,7 +22,7 @@ jobs:
         run: composer validate --no-check-publish
 
       - name: Install test dependencies
-        run: composer install --no-interaction --prefer-source
+        run: composer install --no-interaction --prefer-dist
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit
