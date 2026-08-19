@@ -9,17 +9,34 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.17.1"                          
-      - name: Update Controle Online      
+          node-version: "18.17.1"
+      - name: Deploy users module to staging host
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.DEV_HOST }}
-          username: ${{ secrets.DEV_USER }}
-          password: ${{ secrets.DEV_PASS }}
-
+          # Org secrets (ControleOnline): HOST / USER / PASS — not DEV_*
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          password: ${{ secrets.PASS }}
+          port: ${{ secrets.PORT }}
           script: |
-                  cd /var/www/api-community/modules/controleonline/users
-                  git reset --hard origin/staging
-                  git pull origin staging
-                  cd /var/www/api-community/
-                  php bin/console cache:clear
+            set -e
+            # Staging path (s.controleonline.com)
+            if [ -d /var/www/api-community/modules/controleonline/users ]; then
+              cd /var/www/api-community/modules/controleonline/users
+              git fetch origin staging
+              git reset --hard origin/staging
+              cd /var/www/api-community
+              php bin/console cache:clear --env=prod || php bin/console cache:clear
+              exit 0
+            fi
+            # Fallback: same layout as production on API host
+            if [ -d "$HOME/sistemas/controleonline/api/modules/controleonline/users" ]; then
+              cd "$HOME/sistemas/controleonline/api/modules/controleonline/users"
+              git fetch origin staging
+              git reset --hard origin/staging
+              cd "$HOME/sistemas/controleonline/api"
+              php bin/console cache:clear --env=prod || php bin/console cache:clear
+              exit 0
+            fi
+            echo "ERROR: users module path not found on host"
+            exit 1
