@@ -42,8 +42,14 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
                 $user = $this->em->getRepository(User::class)->findOneBy(['apiKey' => $apiToken]);
                 if (null === $user)
                     throw new CustomUserMessageAuthenticationException('Invalid API token');
+
+                $people = $user->getPeople();
+                if ($people === null || !$people->getEnabled()) {
+                    throw new CustomUserMessageAuthenticationException('Usuário desativado');
+                }
+
                 $user->setResolvedRoles(
-                    $this->peopleRoleService->getGrantedRoles($user->getPeople())
+                    $this->peopleRoleService->getGrantedRoles($people)
                 );
                 return $user;
             }),
@@ -67,6 +73,14 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
+        $message = $exception->getMessageKey() ?: 'Authentication failed';
+        // Preserve clear message for disabled users
+        if (stripos($message, 'desativado') !== false || stripos($message, 'disabled') !== false) {
+            return new JsonResponse([
+                'message' => 'Usuário desativado',
+                'code' => 'USER_DISABLED',
+            ], Response::HTTP_FORBIDDEN);
+        }
         return new JsonResponse(['message' => 'Authentication failed'], Response::HTTP_UNAUTHORIZED);
     }
 
