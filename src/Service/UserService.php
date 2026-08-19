@@ -111,8 +111,15 @@ class UserService
 
     public function getUserSession(User $user)
     {
+        $people = $user->getPeople();
+        if ($people === null || !((int) $people->getEnabled() === 1)) {
+            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException(
+                'Usuário desativado'
+            );
+        }
+
         $user->setResolvedRoles(
-            $this->peopleRoleService->getGrantedRoles($user->getPeople())
+            $this->peopleRoleService->getGrantedRoles($people)
         );
 
         $email = '';
