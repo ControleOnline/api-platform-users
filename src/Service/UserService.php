@@ -6,6 +6,7 @@ use ControleOnline\Entity\Email;
 use ControleOnline\Entity\Language;
 use ControleOnline\Entity\People;
 use ControleOnline\Entity\PeopleLink;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
@@ -18,6 +19,8 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 class UserService
 {
+    private const DEFAULT_TIMEZONE_NAME = 'America/Sao_Paulo';
+
     private $request;
 
     public function __construct(
@@ -165,7 +168,7 @@ class UserService
         return $people;
     }
 
-    public function createUser(People $people, $username, $password)
+    public function createUser(People $people, $username, $password, ?Timezone $timezone = null)
     {
         $this->denyUnlessCanManagePeople($people);
 
@@ -182,6 +185,7 @@ class UserService
         $user->setPeople($people);
         $user->setHash($this->passwordHasher->hashPassword($user, $password));
         $user->setUsername($username);
+        $user->setTimezone($timezone ?? $this->resolveDefaultTimezone());
 
         $this->manager->persist($user);
         $this->manager->flush();
@@ -208,7 +212,8 @@ class UserService
         return $this->createUser(
             $people,
             $payload['username'],
-            $payload['password']
+            $payload['password'],
+            $this->resolveTimezoneForUserCreate($payload)
         );
     }
 
@@ -398,9 +403,9 @@ class UserService
             return false;
         }
 
-        $targetCompanyIds = $this->getCompanyIdsForPeople($people);
-        if ($targetCompanyIds === []) {
-            return false;
+        // Operator may manage their own people record (self-service / profile update path).
+        if ((int) $myPeople->getId() === (int) $people->getId()) {
+            return true;
         }
 
         $managedCompanyIds = array_map(
@@ -412,6 +417,16 @@ class UserService
         );
 
         if ($managedCompanyIds === []) {
+            return false;
+        }
+
+        // Target may be the company itself (PJ just created / company profile update).
+        if (in_array((int) $people->getId(), $managedCompanyIds, true)) {
+            return true;
+        }
+
+        $targetCompanyIds = $this->getCompanyIdsForPeople($people);
+        if ($targetCompanyIds === []) {
             return false;
         }
 
@@ -454,6 +469,66 @@ class UserService
         }
 
         return (bool) $people->getEnabled();
+    }
+
+
+    private function resolveTimezoneForUserCreate(array $payload): Timezone
+    {
+        if (
+            array_key_exists('timezone', $payload) ||
+            array_key_exists('timezone_id', $payload) ||
+            array_key_exists('timezoneId', $payload)
+        ) {
+            $timezone = $this->resolveTimezoneFromPayload($payload);
+            if ($timezone instanceof Timezone) {
+                return $timezone;
+            }
+        }
+
+        return $this->resolveDefaultTimezone();
+    }
+
+    private function resolveDefaultTimezone(): Timezone
+    {
+        $repository = $this->manager->getRepository(Timezone::class);
+        $timezone = $repository->findOneBy(['name' => self::DEFAULT_TIMEZONE_NAME])
+            ?: $repository->findOneBy(['name' => 'UTC']);
+
+        if (!$timezone instanceof Timezone) {
+            throw new BadRequestHttpException('timezone is required');
+        }
+
+        return $timezone;
+    }
+
+    private function resolveTimezoneFromPayload(array $payload): ?Timezone
+    {
+        $rawTimezone =
+            $payload['timezone'] ??
+            $payload['timezone_id'] ??
+            $payload['timezoneId'] ??
+            null;
+
+        if ($rawTimezone === null || $rawTimezone === '') {
+            return null;
+        }
+
+        if (is_int($rawTimezone) || (is_string($rawTimezone) && preg_match('#^\d+$#', trim($rawTimezone)))) {
+            $timezone = $this->manager->getRepository(Timezone::class)->find((int) $rawTimezone);
+            return $timezone instanceof Timezone ? $timezone : null;
+        }
+
+        if (is_string($rawTimezone) && preg_match('#^/timezones/(\d+)$#', trim($rawTimezone), $m)) {
+            $timezone = $this->manager->getRepository(Timezone::class)->find((int) $m[1]);
+            return $timezone instanceof Timezone ? $timezone : null;
+        }
+
+        if (is_string($rawTimezone)) {
+            $timezone = $this->manager->getRepository(Timezone::class)->findOneBy(['name' => trim($rawTimezone)]);
+            return $timezone instanceof Timezone ? $timezone : null;
+        }
+
+        return null;
     }
 
     private function decodePayload(?string $content): array
