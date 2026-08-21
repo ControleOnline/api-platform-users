@@ -31,3 +31,31 @@
 ## Limites
 - Dados cadastrais de pessoa e empresa pertencem a `people`.
 - Recorte de dados por empresa deve ficar nos `securityFilter` dos services de dominio.
+
+## Documentação (navegação humana)
+
+| Categoria | Destino |
+| --- | --- |
+| Home do módulo | https://github.com/ControleOnline/api-platform-users/wiki |
+| Api-Home | https://github.com/ControleOnline/api-community/wiki |
+| Wiki complementar (app) | https://github.com/ControleOnline/app-community/wiki |
+
+### Por categoria — Fluxos de autenticação e e-mail
+
+| Página | O que documenta |
+| --- | --- |
+| [Links de e-mail públicos (multi-tenant)](https://github.com/ControleOnline/api-platform-users/wiki/Links-de-email-publicos-multi-tenant) | Resolução de URL base para confirmação de conta e recuperação de senha; prioridade do domínio do tenant (request) sobre ENV; white-label |
+
+### Por categoria — Instalação
+
+| Página | O que documenta |
+| --- | --- |
+| [Instalação](https://github.com/ControleOnline/api-platform-users/wiki/Instalacao) | Referências de instalação técnica do módulo |
+
+### Módulos relacionados
+
+| Módulo | Entrada |
+| --- | --- |
+| api-platform-common | https://github.com/ControleOnline/api-platform-common (DomainService) |
+| api-community | https://github.com/ControleOnline/api-community/wiki |
+| app-community | https://github.com/ControleOnline/app-community/wiki |
