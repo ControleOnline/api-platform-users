@@ -17,7 +17,7 @@ class PasswordRecoveryService
         private EntityManagerInterface $manager,
         private EmailService $emailService,
         private UserService $userService,
-        private DomainService $domainService,
+        private PublicAppUrlResolver $publicAppUrlResolver,
         private ?ValidatorInterface $validator = null
     ) {}
 
@@ -328,39 +328,13 @@ class PasswordRecoveryService
         );
     }
 
+    /**
+     * Resolve frontend base URL for email links.
+     * Prefer tenant request domain (app-domain / Origin / Referer) over global ENV
+     * so multi-tenant apps receive correct reset links.
+     */
     private function resolvePublicAppUrl(): string
     {
-        $domain = $_ENV['PUBLIC_APP_DOMAIN']
-            ?? $_ENV['MANAGER_APP']
-            ?? $_ENV['APP_DOMAIN']
-            ?? $_ENV['ADMIN_APP_DOMAIN']
-            ?? $_SERVER['PUBLIC_APP_DOMAIN']
-            ?? $_SERVER['MANAGER_APP']
-            ?? $_SERVER['APP_DOMAIN']
-            ?? $_SERVER['ADMIN_APP_DOMAIN']
-            ?? getenv('PUBLIC_APP_DOMAIN')
-            ?? getenv('MANAGER_APP')
-            ?? getenv('APP_DOMAIN')
-            ?? getenv('ADMIN_APP_DOMAIN')
-            ?? '';
-
-        if ($domain === '') {
-            try {
-                $domain = (string) $this->domainService->getDomain();
-            } catch (\Throwable) {
-                $domain = '';
-            }
-        }
-
-        $domain = trim((string) $domain);
-        if ($domain === '') {
-            $domain = 'admin.controleonline.com';
-        }
-
-        if (!preg_match('#^https?://#i', $domain)) {
-            $domain = 'https://' . ltrim($domain, '/');
-        }
-
-        return rtrim($domain, '/');
+        return $this->publicAppUrlResolver->resolve();
     }
 }

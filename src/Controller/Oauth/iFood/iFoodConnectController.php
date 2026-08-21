@@ -3,6 +3,7 @@
 namespace ControleOnline\Controller\Oauth\iFood;
 
 use ControleOnline\Controller\Oauth\DefaultClientController;
+use ControleOnline\Service\Client\IfoodClient;
 use ControleOnline\Service\DomainService;
 use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,7 +17,8 @@ class iFoodConnectController extends DefaultClientController
     public function __construct(
         protected EntityManagerInterface $manager,
         protected UserService $userService,
-        private DomainService $domainService
+        private DomainService $domainService,
+        private IfoodClient $ifoodClient
     ) {
         $this->clientId     = $_ENV['OAUTH_IFOOD_CLIENT_ID'];
         $this->clientSecret = $_ENV['OAUTH_IFOOD_CLIENT_SECRET'];
@@ -25,8 +27,8 @@ class iFoodConnectController extends DefaultClientController
             'clientId'                => $this->clientId,
             'clientSecret'            => $this->clientSecret,
             'redirectUri'             => 'https://' . $this->domainService->getMainDomain() . '/oauth/ifood/return',
-            'urlAuthorize'            => 'https://merchant-api.ifood.com.br/authentication/v1.0/oauth/authorize',
-            'urlAccessToken'          => 'https://merchant-api.ifood.com.br/authentication/v1.0/oauth/token',
+            'urlAuthorize'            => $this->ifoodClient->getAuthorizationUrl(),
+            'urlAccessToken'          => $this->ifoodClient->getAccessTokenUrl(),
             'urlResourceOwnerDetails' => '',
             'scopes' => 'merchant order catalog financial review logistics shipping item picking promotion events'
         ]);
