@@ -30,6 +30,7 @@ class UserService
         private Security $security,
         private PeopleRoleService $peopleRoleService,
         private RequestStack $requestStack,
+        private ?PasswordPolicyService $passwordPolicy = null,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -37,6 +38,10 @@ class UserService
     public function changePassword(User $user, $password)
     {
         $this->denyUnlessCanManagePeople($user->getPeople());
+
+        if ($this->passwordPolicy instanceof PasswordPolicyService) {
+            $this->passwordPolicy->assertValid(is_string($password) ? $password : null);
+        }
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
         $user->setHash($hashedPassword);
@@ -171,6 +176,10 @@ class UserService
     public function createUser(People $people, $username, $password, ?Timezone $timezone = null)
     {
         $this->denyUnlessCanManagePeople($people);
+
+        if ($this->passwordPolicy instanceof PasswordPolicyService) {
+            $this->passwordPolicy->assertValid(is_string($password) ? $password : null);
+        }
 
         $user = $this->manager->getRepository(User::class)
             ->findOneBy([

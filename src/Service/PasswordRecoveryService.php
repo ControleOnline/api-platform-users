@@ -18,7 +18,8 @@ class PasswordRecoveryService
         private EmailService $emailService,
         private UserService $userService,
         private PublicAppUrlResolver $publicAppUrlResolver,
-        private ?ValidatorInterface $validator = null
+        private ?ValidatorInterface $validator = null,
+        private ?PasswordPolicyService $passwordPolicy = null
     ) {}
 
     public function requestRecoveryFromContent(?string $content): void
@@ -257,7 +258,11 @@ class PasswordRecoveryService
             return;
         }
 
-        throw new Exception((string) $violations[0]->getMessage());
+        $message = (string) $violations[0]->getMessage();
+        if ($this->passwordPolicy instanceof PasswordPolicyService) {
+            $message = $this->passwordPolicy->mapErrorMessage($message);
+        }
+        throw new Exception($message);
     }
 
     private function resolveUserFromPeople(
