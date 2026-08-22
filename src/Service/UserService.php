@@ -54,12 +54,17 @@ class UserService
         private UserPasswordHasherInterface $passwordHasher,
         private FileService $fileService,
         private PeopleRoleService $peopleRoleService,
+        private ?PasswordPolicyService $passwordPolicy = null,
     ) {}
 
     public function changePassword(User $user, $password)
     {
         if (!$this->getPermission()) {
             throw new Exception("You should not pass!!!", 301);
+        }
+
+        if ($this->passwordPolicy instanceof PasswordPolicyService) {
+            $this->passwordPolicy->assertValid(is_string($password) ? $password : null);
         }
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
@@ -209,6 +214,10 @@ class UserService
     {
         if (!$this->getPermission()) {
             throw new Exception("You should not pass!!!", 301);
+        }
+
+        if ($this->passwordPolicy instanceof PasswordPolicyService) {
+            $this->passwordPolicy->assertValid(is_string($password) ? $password : null);
         }
 
         $user = $this->manager->getRepository(User::class)
