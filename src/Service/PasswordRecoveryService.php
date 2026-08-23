@@ -32,6 +32,8 @@ class PasswordRecoveryService
         $this->requestRecovery($payload);
     }
 
+    public const TEMPORARY_PASSWORD_TTL_MINUTES = 15;
+
     public function requestRecovery(PasswordRecovery $payload): void
     {
         $user = $this->findUserForRecovery($payload);
@@ -45,20 +47,27 @@ class PasswordRecoveryService
             return;
         }
 
-        $hash = bin2hex(random_bytes(20));
-        $lost = bin2hex(random_bytes(24));
+        // Temporary password flow (app-community#68):
+        // user logs in with the temporary password and MUST change it within 15 minutes.
+        $temporaryPassword = $this->generateTemporaryPassword();
+        $deadline = new \DateTimeImmutable(
+            sprintf('+%d minutes', self::TEMPORARY_PASSWORD_TTL_MINUTES)
+        );
 
+        $this->userService->applyTemporaryPassword($user, $temporaryPassword, $deadline);
+
+        // Invalidate any previous recovery-link tokens so only the temporary password is valid.
         $user
-            ->setOauthHash($hash)
-            ->setLostPassword($lost);
+            ->setOauthHash(null)
+            ->setLostPassword(null);
 
         $this->manager->persist($user);
         $this->manager->flush();
 
         $this->emailService->sendMessage(
             $recipient,
-            'Recuperacao de senha',
-            $this->buildRecoveryEmail($user, $hash, $lost)
+            'Senha temporaria - recuperacao de acesso',
+            $this->buildTemporaryPasswordEmail($user, $temporaryPassword, $deadline)
         );
     }
 
@@ -86,14 +95,8 @@ class PasswordRecoveryService
             throw new Exception('Solicitacao de recuperacao invalida ou expirada.');
         }
 
-        $this->userService->changePassword($user, (string) $payload->password);
-
-        $user
-            ->setOauthHash(null)
-            ->setLostPassword(null);
-
-        $this->manager->persist($user);
-        $this->manager->flush();
+        // Link-based recovery still supported; clears any temporary-password flags.
+        $this->userService->changePasswordForRecovery($user, (string) $payload->password);
     }
 
     private function findUserForRecovery(PasswordRecovery $payload): ?User
@@ -290,6 +293,56 @@ class PasswordRecoveryService
         }
 
         return $users[0] ?? null;
+    }
+
+    private function generateTemporaryPassword(int $length = 10): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        $max = strlen($alphabet) - 1;
+        $password = '';
+        for ($i = 0; $i < $length; $i++) {
+            $password .= $alphabet[random_int(0, $max)];
+        }
+        return $password;
+    }
+
+    private function buildTemporaryPasswordEmail(
+        User $user,
+        string $temporaryPassword,
+        \DateTimeImmutable $deadline
+    ): string {
+        $name = htmlspecialchars(
+            $user->getPeople()->getFullName() ?: $user->getUsername(),
+            ENT_QUOTES,
+            'UTF-8'
+        );
+        $safePassword = htmlspecialchars($temporaryPassword, ENT_QUOTES, 'UTF-8');
+        $minutes = self::TEMPORARY_PASSWORD_TTL_MINUTES;
+        $deadlineLabel = htmlspecialchars(
+            $deadline->format('d/m/Y H:i'),
+            ENT_QUOTES,
+            'UTF-8'
+        );
+        $loginUrl = htmlspecialchars($this->resolvePublicAppUrl() . '/login', ENT_QUOTES, 'UTF-8');
+
+        return sprintf(
+            '<div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
+                <h2 style="margin-bottom: 12px;">Senha temporaria</h2>
+                <p>Ola, %s.</p>
+                <p>Recebemos uma solicitacao de recuperacao de senha.</p>
+                <p>Sua <strong>senha temporaria</strong> e:</p>
+                <p style="font-size: 20px; letter-spacing: 2px; font-weight: bold;">%s</p>
+                <p>Faca login com esta senha e <strong>troque-a obrigatoriamente em ate %d minutos</strong> (ate %s).</p>
+                <p>Apos o login voce sera direcionado para a tela de troca de senha. Depois da troca, a senha temporaria deixa de valer.</p>
+                <p><a href="%s">Acessar o login</a></p>
+                <p>Se voce nao solicitou a recuperacao, ignore este e-mail e altere sua senha por precaução se tiver acesso.</p>
+            </div>',
+            $name,
+            $safePassword,
+            $minutes,
+            $deadlineLabel,
+            $loginUrl
+        );
     }
 
     private function buildRecoveryEmail(User $user, string $hash, string $lost): string

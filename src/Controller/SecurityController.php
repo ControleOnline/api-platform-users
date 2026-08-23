@@ -42,6 +42,13 @@ class SecurityController extends AbstractController
       ], Response::HTTP_FORBIDDEN);
     }
 
+    if ($user->hasExpiredPasswordChangeDeadline()) {
+      return $this->json([
+        'error' => 'Senha temporária expirada. Solicite uma nova recuperação de senha.',
+        'code'  => 'TEMPORARY_PASSWORD_EXPIRED',
+      ], Response::HTTP_FORBIDDEN);
+    }
+
     return $this->json($this->userService->getUserSession($user));
 
   }

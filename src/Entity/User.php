@@ -96,6 +96,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', length: 60, nullable: true)]
     private ?string $lostPassword = null;
 
+    #[ORM\Column(name: 'must_change_password', type: 'boolean', options: ['default' => false])]
+    #[Groups(['user:read'])]
+    private bool $mustChangePassword = false;
+
+    #[ORM\Column(name: 'password_change_deadline', type: 'datetime_immutable', nullable: true)]
+    #[Groups(['user:read'])]
+    private ?\DateTimeImmutable $passwordChangeDeadline = null;
+
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
     #[Groups(['user:read'])]
     private string $apiKey = '';
@@ -222,5 +230,43 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getLostPassword(): ?string
     {
         return $this->lostPassword;
+    }
+
+    public function isMustChangePassword(): bool
+    {
+        return $this->mustChangePassword;
+    }
+
+    public function setMustChangePassword(bool $mustChangePassword): self
+    {
+        $this->mustChangePassword = $mustChangePassword;
+        return $this;
+    }
+
+    public function getPasswordChangeDeadline(): ?\DateTimeImmutable
+    {
+        return $this->passwordChangeDeadline;
+    }
+
+    public function setPasswordChangeDeadline(?\DateTimeImmutable $passwordChangeDeadline): self
+    {
+        $this->passwordChangeDeadline = $passwordChangeDeadline;
+        return $this;
+    }
+
+    public function hasExpiredPasswordChangeDeadline(): bool
+    {
+        if (!$this->mustChangePassword || $this->passwordChangeDeadline === null) {
+            return false;
+        }
+
+        return $this->passwordChangeDeadline < new \DateTimeImmutable('now');
+    }
+
+    public function clearPasswordChangeRequirement(): self
+    {
+        $this->mustChangePassword = false;
+        $this->passwordChangeDeadline = null;
+        return $this;
     }
 }

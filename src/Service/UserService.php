@@ -44,7 +44,9 @@ class UserService
         }
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
-        $user->setHash($hashedPassword);
+        $user
+            ->setHash($hashedPassword)
+            ->clearPasswordChangeRequirement();
 
         $this->manager->persist($user);
         $this->manager->flush();
@@ -59,6 +61,47 @@ class UserService
         }
 
         return $this->changePassword($user, $payload['password']);
+    }
+
+    /**
+     * Apply a temporary password for recovery flow (PUBLIC, no securityFilter).
+     */
+    public function applyTemporaryPassword(
+        User $user,
+        string $plainPassword,
+        \DateTimeImmutable $deadline
+    ): User {
+        $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
+        $user
+            ->setHash($hashedPassword)
+            ->setMustChangePassword(true)
+            ->setPasswordChangeDeadline($deadline);
+
+        $this->manager->persist($user);
+        $this->manager->flush();
+
+        return $user;
+    }
+
+    /**
+     * Change password in recovery-link context (tokens already validated).
+     */
+    public function changePasswordForRecovery(User $user, string $password): User
+    {
+        if ($this->passwordPolicy instanceof PasswordPolicyService) {
+            $this->passwordPolicy->assertValid(is_string($password) ? $password : null);
+        }
+
+        $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
+        $user
+            ->setHash($hashedPassword)
+            ->clearPasswordChangeRequirement()
+            ->setOauthHash(null)
+            ->setLostPassword(null);
+
+        $this->manager->persist($user);
+        $this->manager->flush();
+        return $user;
     }
 
     public function changeApiKey(User $user)
@@ -123,6 +166,11 @@ class UserService
             'email' => $email,
             'phone' => sprintf('%s%s', $code, $number),
             'active' => (int) $user->getPeople()->getEnabled(),
+            'must_change_password' => $user->isMustChangePassword(),
+            'password_change_deadline' => $user->getPasswordChangeDeadline()
+                ? $user->getPasswordChangeDeadline()->format(\DateTimeInterface::ATOM)
+                : null,
+            'password_change_expired' => $user->hasExpiredPasswordChangeDeadline(),
         ];
     }
 
