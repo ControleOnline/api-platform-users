@@ -242,7 +242,7 @@ class UserService
             throw new BadRequestHttpException('people, username and password are required');
         }
 
-        $people = $this->manager->getRepository(People::class)->find($payload['people']);
+        $people = $this->resolvePeopleFromPayload($payload['people']);
         if (!$people instanceof People) {
             throw new BadRequestHttpException('people not found');
         }
@@ -380,6 +380,36 @@ class UserService
         }
 
         return $timezone;
+    }
+
+
+    /**
+     * Resolve People from payload value: numeric id, "/people/{id}" IRI, or plain digit string.
+     */
+    private function resolvePeopleFromPayload(mixed $rawPeople): ?People
+    {
+        if ($rawPeople === null || $rawPeople === '') {
+            return null;
+        }
+
+        $peopleId = null;
+        if (is_int($rawPeople) || (is_string($rawPeople) && preg_match('#^\d+$#', trim($rawPeople)))) {
+            $peopleId = (int) $rawPeople;
+        } elseif (is_string($rawPeople) && preg_match('#^/people/(\d+)$#', trim($rawPeople), $m)) {
+            $peopleId = (int) $m[1];
+        } elseif (is_array($rawPeople)) {
+            $candidate = $rawPeople['id'] ?? $rawPeople['@id'] ?? null;
+            if ($candidate !== null) {
+                return $this->resolvePeopleFromPayload($candidate);
+            }
+        }
+
+        if ($peopleId === null || $peopleId <= 0) {
+            return null;
+        }
+
+        $people = $this->manager->getRepository(People::class)->find($peopleId);
+        return $people instanceof People ? $people : null;
     }
 
     private function decodePayload(?string $content): array
