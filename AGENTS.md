@@ -45,6 +45,14 @@
 | Página | O que documenta |
 | --- | --- |
 | [Links de e-mail públicos (multi-tenant)](https://github.com/ControleOnline/api-platform-users/wiki/Links-de-email-publicos-multi-tenant) | Resolução de URL base para confirmação de conta e recuperação de senha; prioridade do domínio do tenant (request) sobre ENV; white-label |
+| [POST /users — ROLE_HUMAN e vínculo people](https://github.com/ControleOnline/api-platform-users/wiki/POST-users-ROLE-HUMAN) | Security da criação de usuário; people em IRI; ligação com Client Details |
+
+### Por categoria — Criação de usuário (Client Details)
+
+| Página | O que documenta |
+| --- | --- |
+| [POST /users ROLE_HUMAN](https://github.com/ControleOnline/api-platform-users/wiki/POST-users-ROLE-HUMAN) | Contrato backend POST /users |
+| Página canônica (UI) | https://github.com/ControleOnline/ui-customers/wiki/Client-Details-Criar-Usuario |
 
 ### Por categoria — Instalação
 
