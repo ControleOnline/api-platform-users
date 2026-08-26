@@ -4,6 +4,20 @@ namespace ControleOnline\Tests\Service;
 
 require_once dirname(__DIR__, 2) . '/src/Service/PublicAppUrlResolver.php';
 
+if (!class_exists(\ControleOnline\Service\DomainService::class, false)) {
+    $sharedDomainServiceCandidates = [
+        dirname(__DIR__, 3) . '/common/src/Service/DomainService.php',
+        dirname(__DIR__, 4) . '/api-platform-common/src/Service/DomainService.php',
+        dirname(__DIR__, 2) . '/vendor/controleonline/common/src/Service/DomainService.php',
+    ];
+    foreach ($sharedDomainServiceCandidates as $sharedDomainServiceFile) {
+        if (is_file($sharedDomainServiceFile)) {
+            require_once $sharedDomainServiceFile;
+            break;
+        }
+    }
+}
+
 use ControleOnline\Service\DomainService;
 use ControleOnline\Service\PublicAppUrlResolver;
 use PHPUnit\Framework\TestCase;
