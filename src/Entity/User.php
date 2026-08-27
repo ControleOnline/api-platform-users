@@ -37,7 +37,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Post(
             uriTemplate: '/users',
             controller: CreateUserAction::class,
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
             security: 'is_granted(\'ROLE_CLIENT\') and object == user',
