@@ -43,6 +43,7 @@ use ControleOnline\Entity\People;
 use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Exception;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -55,6 +56,38 @@ class UserService
         private FileService $fileService,
         private PeopleRoleService $peopleRoleService,
     ) {}
+
+    public function securityFilter(QueryBuilder $queryBuilder, $resourceClass = null, $applyTo = null, $rootAlias = null): void
+    {
+        $rootAlias ??= $queryBuilder->getRootAliases()[0] ?? 'o';
+        $currentPeople = $this->peopleRoleService->getCurrentPeople();
+
+        if (!$currentPeople instanceof People) {
+            $queryBuilder->andWhere('1 = 0');
+            return;
+        }
+
+        $accessibleCompanies = $this->peopleRoleService->getAccessibleCompaniesForPeople($currentPeople);
+        $companyIds = array_values(array_filter(array_map(
+            static fn (People $company): int => (int) $company->getId(),
+            $accessibleCompanies,
+        )));
+
+        $queryBuilder
+            ->leftJoin(sprintf('%s.people', $rootAlias), 'userPeople')
+            ->leftJoin('userPeople.link', 'userPeopleLink', 'WITH', 'userPeopleLink.enable = true')
+            ->setParameter('currentUserPeopleId', (int) $currentPeople->getId());
+
+        if ($companyIds === []) {
+            $queryBuilder->andWhere('userPeople.id = :currentUserPeopleId');
+            return;
+        }
+
+        $queryBuilder->andWhere(
+            '(userPeople.id = :currentUserPeopleId OR userPeopleLink.company IN (:userAccessibleCompanyIds))',
+        );
+        $queryBuilder->setParameter('userAccessibleCompanyIds', $companyIds);
+    }
 
     public function changePassword(User $user, $password)
     {

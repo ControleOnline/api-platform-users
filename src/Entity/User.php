@@ -74,7 +74,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: 'is_granted(\'ROLE_CLIENT\')',
             requirements: ['id' => '\d+'],
         ),
-        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+        new GetCollection(security: 'is_granted(\'ROLE_HUMAN\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
     normalizationContext: ['groups' => ['user:read']],
