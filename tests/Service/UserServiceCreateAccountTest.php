@@ -11,6 +11,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class UserServiceCreateAccountTest extends TestCase
 {
@@ -86,7 +88,9 @@ class UserServiceCreateAccountTest extends TestCase
             $this->createMock(EntityManagerInterface::class),
             $this->createMock(UserPasswordHasherInterface::class),
             $this->createMock(FileService::class),
-            $this->createMock(PeopleRoleService::class)
+            $this->createMock(TokenStorageInterface::class),
+            $this->createMock(PeopleRoleService::class),
+            new RequestStack()
         );
     }
 
@@ -97,7 +101,9 @@ class UserServiceCreateAccountTest extends TestCase
                 $this->createMock(EntityManagerInterface::class),
                 $this->createMock(UserPasswordHasherInterface::class),
                 $this->createMock(FileService::class),
+                $this->createMock(TokenStorageInterface::class),
                 $this->createMock(PeopleRoleService::class),
+                new RequestStack(),
             ])
             ->onlyMethods(['discoveryPeople', 'createUser', 'getUserSession'])
             ->getMock();

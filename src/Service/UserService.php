@@ -131,6 +131,27 @@ class UserService
         return $user;
     }
 
+    public function createAccountSessionFromContent(?string $content): array
+    {
+        $payload = $this->decodePayload($content);
+        $name = trim((string) ($payload['name'] ?? ''));
+        $email = trim((string) ($payload['email'] ?? ''));
+        $password = (string) ($payload['password'] ?? '');
+
+        if ($name === '' || $email === '' || $password === '') {
+            throw new BadRequestHttpException('name, email and password are required');
+        }
+
+        if (array_key_exists('confirmPassword', $payload) && $password !== (string) $payload['confirmPassword']) {
+            throw new BadRequestHttpException('password confirmation does not match');
+        }
+
+        $parts = preg_split('/\s+/', $name, 2) ?: [$name];
+        $user = $this->discoveryUser($email, $password, $parts[0], $parts[1] ?? '');
+
+        return $this->getUserSession($user);
+    }
+
     public function getUserSession(User $user)
     {
         $resolvedRoles = $this->peopleRoleService->getGrantedRoles($user->getPeople());

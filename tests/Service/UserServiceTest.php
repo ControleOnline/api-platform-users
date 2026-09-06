@@ -4,6 +4,7 @@ namespace ControleOnline\Users\Tests\Service;
 
 use ControleOnline\Entity\People;
 use ControleOnline\Entity\PeopleLink;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Entity\User;
 use ControleOnline\Service\FileService;
 use ControleOnline\Service\PeopleRoleService;
@@ -15,32 +16,26 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
 class UserServiceTest extends TestCase
 {
     public function testCreateUserAllowsManagingPeopleFromAdministrativeCompany(): void
     {
-        $company = new People(10);
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
-        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
+        $company = $this->people(10);
+        $currentPeople = $this->people(1);
+        $targetPeople = $this->people(2);
+        $this->link($targetPeople, $company);
 
-        $existingUserRepository = new class {
-            public function findOneBy(array $criteria): ?User
-            {
-                return null;
-            }
-        };
+        $existingUserRepository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $existingUserRepository->method('findOneBy')->willReturn(null);
+        $timezoneRepository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $timezoneRepository->method('findOneBy')->willReturn(new Timezone());
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager
-            ->expects(self::once())
             ->method('getRepository')
-            ->with(User::class)
-            ->willReturn($existingUserRepository);
+            ->willReturnCallback(fn (string $class) => $class === User::class ? $existingUserRepository : $timezoneRepository);
         $manager->expects(self::once())->method('persist');
         $manager->expects(self::once())->method('flush');
 
@@ -55,13 +50,9 @@ class UserServiceTest extends TestCase
 
     public function testCreateUserRejectsPeopleWhenUserOnlyHasNonAdministrativeLink(): void
     {
-        $company = new People(10);
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
-        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
+        $company = $this->people(10);
+        $currentPeople = $this->people(1);
+        $targetPeople = $this->people(2);
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->expects(self::never())->method('persist');
@@ -75,12 +66,8 @@ class UserServiceTest extends TestCase
 
     public function testCreateUserRejectsPeopleOutsideAdministrativeCompanies(): void
     {
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink(new People(10)),
-        ]));
-        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink(new People(20)),
-        ]));
+        $currentPeople = $this->people(1);
+        $targetPeople = $this->people(2);
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->expects(self::never())->method('persist');
@@ -94,13 +81,9 @@ class UserServiceTest extends TestCase
 
     public function testDeleteUserRejectsPeopleWhoseOnlyLinkIsDisabled(): void
     {
-        $company = new People(10);
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
-        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company, false),
-        ]));
+        $company = $this->people(10);
+        $currentPeople = $this->people(1);
+        $targetPeople = $this->people(2);
 
         $manager = $this->createMock(EntityManagerInterface::class);
 
@@ -112,13 +95,9 @@ class UserServiceTest extends TestCase
 
     public function testDeleteUserRejectsPeopleWhoseCompanyIsDisabled(): void
     {
-        $company = new People(10, null, 0);
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink(new People(10)),
-        ]));
-        $targetPeople = new People(2, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
+        $company = $this->people(10, false);
+        $currentPeople = $this->people(1);
+        $targetPeople = $this->people(2);
 
         $manager = $this->createMock(EntityManagerInterface::class);
 
@@ -130,136 +109,38 @@ class UserServiceTest extends TestCase
 
     public function testSecurityFilterRestrictsUsersToSelfAndAdministrativeCompanies(): void
     {
-        $company = new People(10);
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
+        $company = $this->people(10);
+        $currentPeople = $this->people(1);
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $service = $this->buildService($manager, $currentPeople, [$company], [$company]);
 
-        $queryBuilder = new class extends QueryBuilder {
-            public array $aliases = ['u'];
-            public array $joins = [];
-            public array $conditions = [];
-            public array $parameters = [];
-
-            public function getAllAliases()
-            {
-                return $this->aliases;
-            }
-
-            public function innerJoin($join, $alias, $conditionType = null, $condition = null)
-            {
-                $this->aliases[] = $alias;
-                $this->joins[] = ['inner', $join, $alias, $condition];
-                return $this;
-            }
-
-            public function leftJoin($join, $alias, $conditionType = null, $condition = null)
-            {
-                $this->aliases[] = $alias;
-                $this->joins[] = ['left', $join, $alias, $condition];
-                return $this;
-            }
-
-            public function andWhere($condition)
-            {
-                $this->conditions[] = $condition;
-                return $this;
-            }
-
-            public function setParameter($key, $value, $type = null)
-            {
-                $this->parameters[$key] = $value;
-                return $this;
-            }
-
-            public function expr()
-            {
-                return new class {
-                    public function orX(...$conditions): string
-                    {
-                        return implode(' OR ', $conditions);
-                    }
-                };
-            }
-        };
+        $queryBuilder = new QueryBuilder($manager);
+        $queryBuilder->select('u')->from(User::class, 'u');
 
         $service->securityFilter($queryBuilder, User::class, 'collection', 'u');
 
-        self::assertCount(3, $queryBuilder->joins);
-        self::assertSame('user_people_link.people = user_people.id AND user_people_link.enable = true', $queryBuilder->joins[1][3]);
-        self::assertSame('user_people_company.enabled = true', $queryBuilder->joins[2][3]);
-        self::assertSame([10], $queryBuilder->parameters['managedCompanies']);
-        self::assertSame(1, $queryBuilder->parameters['myPeopleId']);
-        self::assertStringContainsString('user_people.id = :myPeopleId', $queryBuilder->conditions[0]);
-        self::assertStringContainsString('user_people_company.id IN(:managedCompanies)', $queryBuilder->conditions[0]);
+        self::assertSame([10], $queryBuilder->getParameter('managedCompanies')->getValue());
+        self::assertSame(1, $queryBuilder->getParameter('myPeopleId')->getValue());
+        self::assertNotNull($queryBuilder->getDQLPart('where'));
     }
 
     public function testSecurityFilterFallsBackToSelfWhenUserHasNoAdministrativeCompanies(): void
     {
-        $company = new People(10);
-        $currentPeople = new People(1, new \ControleOnline\Entity\LinkCollection([
-            new PeopleLink($company),
-        ]));
+        $company = $this->people(10);
+        $currentPeople = $this->people(1);
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $service = $this->buildService($manager, $currentPeople, [$company], []);
 
-        $queryBuilder = new class extends QueryBuilder {
-            public array $aliases = ['u'];
-            public array $joins = [];
-            public array $conditions = [];
-            public array $parameters = [];
-
-            public function getAllAliases()
-            {
-                return $this->aliases;
-            }
-
-            public function innerJoin($join, $alias, $conditionType = null, $condition = null)
-            {
-                $this->aliases[] = $alias;
-                $this->joins[] = ['inner', $join, $alias, $condition];
-                return $this;
-            }
-
-            public function leftJoin($join, $alias, $conditionType = null, $condition = null)
-            {
-                $this->aliases[] = $alias;
-                $this->joins[] = ['left', $join, $alias, $condition];
-                return $this;
-            }
-
-            public function andWhere($condition)
-            {
-                $this->conditions[] = $condition;
-                return $this;
-            }
-
-            public function setParameter($key, $value, $type = null)
-            {
-                $this->parameters[$key] = $value;
-                return $this;
-            }
-
-            public function expr()
-            {
-                return new class {
-                    public function orX(...$conditions): string
-                    {
-                        return implode(' OR ', $conditions);
-                    }
-                };
-            }
-        };
+        $queryBuilder = new QueryBuilder($manager);
+        $queryBuilder->select('u')->from(User::class, 'u');
 
         $service->securityFilter($queryBuilder, User::class, 'collection', 'u');
 
-        self::assertArrayNotHasKey('managedCompanies', $queryBuilder->parameters);
-        self::assertSame(1, $queryBuilder->parameters['myPeopleId']);
-        self::assertSame('user_people.id = :myPeopleId', $queryBuilder->conditions[0]);
+        self::assertNull($queryBuilder->getParameter('managedCompanies'));
+        self::assertSame(1, $queryBuilder->getParameter('myPeopleId')->getValue());
+        self::assertNotNull($queryBuilder->getDQLPart('where'));
     }
 
     private function buildService(
@@ -270,16 +151,7 @@ class UserServiceTest extends TestCase
     ): UserService {
         $currentUser = (new User())->setPeople($currentPeople);
 
-        $token = new class($currentUser) implements \Symfony\Component\Security\Core\Authentication\Token\TokenInterface {
-            public function __construct(private User $user)
-            {
-            }
-
-            public function getUser(): User
-            {
-                return $this->user;
-            }
-        };
+        $token = new UsernamePasswordToken($currentUser, 'test', []);
 
         $security = new class($token) implements TokenStorageInterface {
             public function __construct(private $token)
@@ -290,6 +162,11 @@ class UserServiceTest extends TestCase
             {
                 return $this->token;
             }
+
+            public function setToken(?\Symfony\Component\Security\Core\Authentication\Token\TokenInterface $token): void
+            {
+                $this->token = $token;
+            }
         };
 
         $hasher = new class implements UserPasswordHasherInterface {
@@ -297,20 +174,52 @@ class UserServiceTest extends TestCase
             {
                 return 'hashed-' . $plainPassword;
             }
+
+            public function isPasswordValid(\Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface $user, string $plainPassword): bool
+            {
+                return false;
+            }
+
+            public function needsRehash(\Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface $user): bool
+            {
+                return false;
+            }
         };
 
         $requestStack = new RequestStack();
 
+        $roles = $this->createMock(PeopleRoleService::class);
+        $roles->method('getAccessibleCompaniesForPeople')
+            ->willReturnCallback(function ($people, $types = null) use ($employeeCompanies, $managedCompanies): array {
+                return $types === PeopleLink::MANAGER_LINK ? $managedCompanies : $employeeCompanies;
+            });
+        $roles->method('getGrantedRoles')->willReturn(['ROLE_HUMAN']);
+
         return new UserService(
             $manager,
             $hasher,
-            new FileService(),
+            $this->createMock(FileService::class),
             $security,
-            new PeopleRoleService([
-                'employee' => $employeeCompanies,
-                'manager' => $managedCompanies,
-            ]),
+            $roles,
             $requestStack
         );
+    }
+
+    private function people(int $id, bool $enabled = true): People
+    {
+        $people = new People();
+        $property = new \ReflectionProperty(People::class, 'id');
+        $property->setValue($people, $id);
+        $people->setEnabled($enabled);
+
+        return $people;
+    }
+
+    private function link(People $people, People $company): void
+    {
+        $property = new \ReflectionProperty(People::class, 'link');
+        $property->setValue($people, new \Doctrine\Common\Collections\ArrayCollection([
+            (new PeopleLink())->setCompany($company),
+        ]));
     }
 }

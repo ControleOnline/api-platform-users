@@ -8,34 +8,32 @@ use ControleOnline\Entity\User;
 use ControleOnline\Service\UserService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 
 class DeleteUserActionTest extends TestCase
 {
     public function testInvokeDelegatesDeletionToUserService(): void
     {
-        $people = new People(7);
-        $user = (new User())
-            ->setId(11)
-            ->setPeople($people);
+        $people = new People();
 
         $service = $this->createMock(UserService::class);
         $service
             ->expects(self::once())
-            ->method('deleteUser')
-            ->with($people, 11)
+            ->method('deleteUserFromContent')
+            ->with($people, '{"id":11}')
             ->willReturn(true);
 
-        $response = (new DeleteUserAction($service))->__invoke($user);
+        $response = (new DeleteUserAction($service))->__invoke($people, new Request(content: json_encode(['id' => 11])));
 
         self::assertInstanceOf(JsonResponse::class, $response);
         self::assertSame(200, $response->getStatusCode());
         self::assertSame([
             'response' => [
-                'data' => [],
-                'count' => 0,
-                'error' => null,
+                'data' => true,
+                'count' => 1,
+                'error' => '',
                 'success' => true,
             ],
-        ], $response->getData(true));
+        ], json_decode((string) $response->getContent(), true));
     }
 }
