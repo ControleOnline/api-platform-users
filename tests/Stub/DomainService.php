@@ -4,10 +4,12 @@ namespace ControleOnline\Service;
 /**
  * Test stub: real DomainService lives in a shared package at runtime.
  */
-class DomainService
-{
-    public function getDomain(): string
+if (!class_exists(DomainService::class, false)) {
+    class DomainService
     {
-        return '';
+        public function getDomain(): string
+        {
+            return '';
+        }
     }
 }
