@@ -47,7 +47,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
             requirements: ['id' => '\d+'],
-            securityPostDenormalize: 'is_granted(\'ROLE_CLIENT\')',
+            securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
@@ -71,10 +71,10 @@ use Symfony\Component\Validator\Constraints as Assert;
 
         ),
         new Get(
-            security: 'is_granted(\'ROLE_CLIENT\')',
+            security: 'is_granted(\'ROLE_HUMAN\')',
             requirements: ['id' => '\d+'],
         ),
-        new GetCollection(security: 'is_granted(\'ROLE_CLIENT\')')
+        new GetCollection(security: 'is_granted(\'ROLE_HUMAN\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
     normalizationContext: ['groups' => ['user:read']],
