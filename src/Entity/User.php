@@ -11,18 +11,19 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ControleOnline\Controller\ChangeApiKeyAction;
 use ControleOnline\Controller\ChangePasswordAction;
 use ControleOnline\Controller\CreateUserAction;
-use ControleOnline\Controller\DeleteUserAction;
 use ControleOnline\Controller\SecurityController;
+use ControleOnline\Controller\UpdateUserPreferencesAction;
 use ControleOnline\Entity\People;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Repository\UserRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 
@@ -38,20 +39,29 @@ use Doctrine\ORM\Mapping as ORM;
             controller: CreateUserAction::class,
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
-        new Delete(
-            uriTemplate: '/users/{id}',
-            controller: DeleteUserAction::class,
-            security: 'is_granted(\'ROLE_HUMAN\')',
+        new Put(
+            security: 'is_granted(\'ROLE_CLIENT\') and object == user',
+            requirements: ['id' => '\d+'],
         ),
         new Put(
             uriTemplate: '/users/{id}/change-api-key',
             controller: ChangeApiKeyAction::class,
+            requirements: ['id' => '\d+'],
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
         ),
         new Put(
             uriTemplate: '/users/{id}/change-password',
             controller: ChangePasswordAction::class,
+            requirements: ['id' => '\d+'],
             securityPostDenormalize: 'is_granted(\'ROLE_HUMAN\')',
+        ),
+        new Put(
+            uriTemplate: '/users/preferences',
+            controller: UpdateUserPreferencesAction::class,
+            security: 'is_granted(\'ROLE_HUMAN\')',
+            deserialize: false,
+            read: false,
+            output: false,
         ),
         new Post(
             uriTemplate: '/token',
@@ -60,7 +70,10 @@ use Doctrine\ORM\Mapping as ORM;
             security: 'is_granted(\'PUBLIC_ACCESS\')',
 
         ),
-        new Get(security: 'is_granted(\'ROLE_HUMAN\')'),
+        new Get(
+            security: 'is_granted(\'ROLE_HUMAN\')',
+            requirements: ['id' => '\d+'],
+        ),
         new GetCollection(security: 'is_granted(\'ROLE_HUMAN\')')
     ],
     formats: ['jsonld', 'json', 'html', 'jsonhal', 'csv' => ['text/csv']],
@@ -75,11 +88,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
-    #[Groups(['user:read'])]
+    #[Groups(['people:read', 'user:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false)]
-    #[Groups(['user:read', 'user:write'])]
+    #[Groups(['people:read', 'user:read', 'user:write'])]
     #[Assert\NotBlank(message: 'O e-mail é obrigatório.')]
     #[Assert\Email(message: 'O valor "{{ value }}" não é um e-mail válido.')]
     private string $username = '';
@@ -96,22 +109,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', length: 60, nullable: true)]
     private ?string $lostPassword = null;
 
-    #[ORM\Column(name: 'must_change_password', type: 'boolean', options: ['default' => false])]
-    #[Groups(['user:read'])]
-    private bool $mustChangePassword = false;
-
-    #[ORM\Column(name: 'password_change_deadline', type: 'datetime_immutable', nullable: true)]
-    #[Groups(['user:read'])]
-    private ?\DateTimeImmutable $passwordChangeDeadline = null;
-
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
-    #[Groups(['user:read'])]
+    #[Groups(['people:read', 'user:read'])]
     private string $apiKey = '';
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]
     #[ORM\JoinColumn(name: 'people_id', referencedColumnName: 'id', nullable: false)]
     #[Groups(['user:read'])]
     private People $people;
+
+    #[ORM\ManyToOne(targetEntity: Timezone::class)]
+    #[ORM\JoinColumn(name: 'timezone_id', referencedColumnName: 'id', nullable: true)]
+    #[Groups(['user:read', 'user:write'])]
+    private ?Timezone $timezone = null;
 
     public function __construct()
     {
@@ -221,6 +231,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->people;
     }
 
+    public function setTimezone(?Timezone $timezone): self
+    {
+        $this->timezone = $timezone;
+
+        return $this;
+    }
+
+    public function getTimezone(): ?Timezone
+    {
+        return $this->timezone;
+    }
+
     public function setLostPassword(?string $hash): self
     {
         $this->lostPassword = $hash;
@@ -230,43 +252,5 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getLostPassword(): ?string
     {
         return $this->lostPassword;
-    }
-
-    public function isMustChangePassword(): bool
-    {
-        return $this->mustChangePassword;
-    }
-
-    public function setMustChangePassword(bool $mustChangePassword): self
-    {
-        $this->mustChangePassword = $mustChangePassword;
-        return $this;
-    }
-
-    public function getPasswordChangeDeadline(): ?\DateTimeImmutable
-    {
-        return $this->passwordChangeDeadline;
-    }
-
-    public function setPasswordChangeDeadline(?\DateTimeImmutable $passwordChangeDeadline): self
-    {
-        $this->passwordChangeDeadline = $passwordChangeDeadline;
-        return $this;
-    }
-
-    public function hasExpiredPasswordChangeDeadline(): bool
-    {
-        if (!$this->mustChangePassword || $this->passwordChangeDeadline === null) {
-            return false;
-        }
-
-        return $this->passwordChangeDeadline < new \DateTimeImmutable('now');
-    }
-
-    public function clearPasswordChangeRequirement(): self
-    {
-        $this->mustChangePassword = false;
-        $this->passwordChangeDeadline = null;
-        return $this;
     }
 }
