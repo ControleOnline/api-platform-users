@@ -28,7 +28,7 @@ class ChangeApiKeyAction
                 $this->hydratorService->item(
                     User::class,
                     $user->getId(),
-                    "user:read"
+                    "user:read,user:api_key"
                 )
             );
         } catch (\Throwable $e) {

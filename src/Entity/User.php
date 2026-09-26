@@ -105,7 +105,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\DateTimeImmutable $passwordChangeDeadline = null;
 
     #[ORM\Column(type: 'string', length: 60, nullable: false)]
-    #[Groups(['user:read'])]
+    #[Groups(['user:api_key'])]
     private string $apiKey = '';
 
     #[ORM\ManyToOne(targetEntity: People::class, inversedBy: 'user')]
