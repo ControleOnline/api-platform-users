@@ -7,7 +7,7 @@
     167
   ],
   "repositories": {
-    "ControleOnline/api-platform-users": "d03288141f2da6b92892726ea9ebc4c1e5da7424"
+    "ControleOnline/api-platform-users": "85826738c987fd5e08e224760d7231f73c081407"
   },
   "frozen": true,
   "notes": "#167 vendor paths + remove modules deploy"
