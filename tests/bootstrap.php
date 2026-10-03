@@ -1,12 +1,5 @@
 <?php
 
-namespace {
-    $rootAutoloader = dirname(__DIR__, 2) . '/api-community/vendor/autoload.php';
-    if (is_file($rootAutoloader)) {
-        require_once $rootAutoloader;
-    }
-}
-
 namespace Doctrine\ORM {
     interface EntityManagerInterface
     {
@@ -93,6 +86,16 @@ namespace Symfony\Component\PasswordHasher\Hasher {
     interface UserPasswordHasherInterface
     {
         public function hashPassword(object $user, string $plainPassword): string;
+    }
+}
+
+namespace Symfony\Component\Security\Core\User {
+    interface UserInterface
+    {
+    }
+
+    interface PasswordAuthenticatedUserInterface
+    {
     }
 }
 
