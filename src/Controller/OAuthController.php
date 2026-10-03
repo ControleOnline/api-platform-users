@@ -90,6 +90,17 @@ final class OAuthController
         }
     }
 
+    #[Route('/revoke', name: 'users_oauth_revoke', methods: ['POST'])]
+    public function revoke(Request $request): Response
+    {
+        $params = $request->getPayload()->all();
+        $token = is_string($params['token'] ?? null) ? $params['token'] : '';
+        $clientId = is_string($params['client_id'] ?? null) ? $params['client_id'] : '';
+        $this->oauthService->revokeAccessToken($token, $clientId);
+
+        return new Response('', Response::HTTP_OK, $this->noStoreHeaders());
+    }
+
     private function oauthError(string $error, int $status): JsonResponse
     {
         return new JsonResponse(['error' => $error], $status, $this->noStoreHeaders());

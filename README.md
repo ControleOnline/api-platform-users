@@ -3,7 +3,7 @@
 # users
 
 
-`composer require controleonline/users:dev-master`
+`composer require controleonline/users:1.0.2`
 
 
 

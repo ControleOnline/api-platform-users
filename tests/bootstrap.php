@@ -31,17 +31,23 @@ namespace Doctrine\ORM {
 }
 
 namespace Symfony\Component\HttpFoundation {
-    class JsonResponse
+    class JsonResponse extends Response
     {
         public function __construct(
             private array $data = [],
-            private int $status = 200
+            int $status = 200,
+            array $headers = []
         ) {
+            parent::__construct(
+                json_encode($data, JSON_THROW_ON_ERROR),
+                $status,
+                ['Content-Type' => 'application/json'] + $headers
+            );
         }
 
         public function getStatusCode(): int
         {
-            return $this->status;
+            return parent::getStatusCode();
         }
 
         public function getData(bool $assoc = false): array

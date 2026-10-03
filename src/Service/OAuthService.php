@@ -214,6 +214,7 @@ final class OAuthService
             'sub' => (int) $claims['sub'],
             'tenant' => (string) $claims['tenant'],
             'scope' => (string) $claims['scope'],
+            'client_id_hash' => hash('sha256', $clientId),
             'jti' => bin2hex(random_bytes(24)),
             'iat' => time(),
             'exp' => $expiresAt,
@@ -240,7 +241,45 @@ final class OAuthService
             throw new \InvalidArgumentException('Invalid access token');
         }
 
+        $jti = $claims['jti'] ?? null;
+        if (!is_string($jti) || preg_match('/^[a-f0-9]{48}$/', $jti) !== 1
+            || $this->cache->getItem($this->revokedAccessTokenKey($jti))->isHit()) {
+            throw new \InvalidArgumentException('Invalid access token');
+        }
+
         return $claims;
+    }
+
+    /**
+     * Revokes an access token presented by its public OAuth client. Invalid,
+     * expired, or mismatched tokens are intentionally ignored per RFC 7009.
+     */
+    public function revokeAccessToken(string $token, string $clientId): void
+    {
+        try {
+            $client = $this->decode($clientId, 'client');
+            $claims = $this->decode($token, 'access_token');
+        } catch (\InvalidArgumentException) {
+            return;
+        }
+
+        $jti = $claims['jti'] ?? null;
+        $clientIdHash = $claims['client_id_hash'] ?? null;
+        $remainingLifetime = (int) ($claims['exp'] ?? 0) - time();
+        if (($claims['iss'] ?? null) !== $this->issuer
+            || ($claims['aud'] ?? null) !== $this->issuer . '/mcp'
+            || !is_string($jti) || preg_match('/^[a-f0-9]{48}$/', $jti) !== 1
+            || !is_string($clientIdHash)
+            || !hash_equals($clientIdHash, hash('sha256', $clientId))
+            || $remainingLifetime < 1
+            || !isset($client['client_name'])) {
+            return;
+        }
+
+        $item = $this->cache->getItem($this->revokedAccessTokenKey($jti));
+        $item->set(true);
+        $item->expiresAfter($remainingLifetime);
+        $this->cache->save($item);
     }
 
     public function resolveTenantFromAuthorizationCode(string $code): string
@@ -323,6 +362,11 @@ final class OAuthService
         } finally {
             $lock->release();
         }
+    }
+
+    private function revokedAccessTokenKey(string $jti): string
+    {
+        return 'users.oauth.revoked_access_token.' . hash('sha256', $jti);
     }
 
     private function isAllowedRedirectUri(string $uri): bool

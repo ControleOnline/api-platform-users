@@ -98,6 +98,47 @@ final class OAuthServiceTest extends TestCase
         ]);
     }
 
+    public function testPublicClientCanRevokeItsOwnAccessToken(): void
+    {
+        $client = $this->oauthService->registerClient([
+            'client_name' => 'Desktop MCP',
+            'redirect_uris' => ['http://localhost:43123/callback'],
+        ]);
+        $verifier = str_repeat('r', 43);
+        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+        $redirectUri = $client['redirect_uris'][0];
+        $authorization = $this->oauthService->authorize($this->activeUser(53), [
+            'response_type' => 'code',
+            'client_id' => $client['client_id'],
+            'redirect_uri' => $redirectUri,
+            'state' => 'state-revoke',
+            'code_challenge' => $challenge,
+            'code_challenge_method' => 'S256',
+            'scope' => 'mcp:read',
+            'decision' => 'approve',
+        ]);
+        parse_str((string) parse_url($authorization['redirect_to'], PHP_URL_QUERY), $callback);
+        $token = $this->oauthService->exchangeAuthorizationCode([
+            'grant_type' => 'authorization_code',
+            'client_id' => $client['client_id'],
+            'redirect_uri' => $redirectUri,
+            'code' => $callback['code'],
+            'code_verifier' => $verifier,
+        ])['access_token'];
+
+        $otherClient = $this->oauthService->registerClient([
+            'client_name' => 'Other MCP client',
+            'redirect_uris' => ['http://localhost:43124/callback'],
+        ]);
+        $this->oauthService->revokeAccessToken($token, $otherClient['client_id']);
+        self::assertSame(53, $this->oauthService->resolveAccessToken($token)['sub']);
+
+        $this->oauthService->revokeAccessToken($token, $client['client_id']);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->oauthService->resolveAccessToken($token);
+    }
+
     public function testMultiTenancyListenerOverridesClientTenantHeaderWithSignedCodeClaim(): void
     {
         $client = $this->oauthService->registerClient([
@@ -210,7 +251,7 @@ final class OAuthServiceTest extends TestCase
         $user = new User();
         $idProperty = new \ReflectionProperty(User::class, 'id');
         $idProperty->setValue($user, $id);
-        $user->setPeople((new People())->setEnabled(true));
+        $user->setPeople(new People(0, null, 1));
 
         return $user;
     }
