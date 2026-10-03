@@ -618,6 +618,7 @@ class UserService
         return $people instanceof People ? $people : null;
     }
 
+
     private function decodePayload(?string $content): array
     {
         if (!is_string($content) || trim($content) === '') {

@@ -89,6 +89,16 @@ namespace Symfony\Component\PasswordHasher\Hasher {
     }
 }
 
+namespace Symfony\Component\Security\Core\User {
+    interface UserInterface
+    {
+    }
+
+    interface PasswordAuthenticatedUserInterface
+    {
+    }
+}
+
 namespace Symfony\Component\Security\Core\Authentication\Token {
     interface TokenInterface
     {
@@ -162,8 +172,9 @@ namespace ControleOnline\Entity {
         }
     }
 
-    class User
-    {
+    if (!class_exists(User::class)) {
+        class User
+        {
         private ?int $id = null;
         private ?People $people = null;
         private string $username = '';
@@ -228,6 +239,7 @@ namespace ControleOnline\Entity {
         public function setResolvedRoles(array $roles): self
         {
             return $this;
+        }
         }
     }
 
