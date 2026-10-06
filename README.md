@@ -3,7 +3,7 @@
 # users
 
 
-`composer require controleonline/users:dev-master`
+`composer require controleonline/users:1.0.4`
 
 
 
@@ -12,7 +12,7 @@ config\services.yaml
 
 ```yaml
 imports:
-    - { resource: "../modules/controleonline/orders/tasks/services/tasks.yaml" }    
+    - { resource: "../modules/controleonline/orders/tasks/services/tasks.yaml" }
 ```
 
 Change your autentication file:
@@ -72,7 +72,7 @@ use ControleOnline\Security\TokenAuthenticator as SecurityTokenAuthenticator;
 
 class TokenAuthenticator extends SecurityTokenAuthenticator
 {
-    
+
 }
 ```
 

@@ -19,7 +19,9 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 class UserService
 {
-    private const DEFAULT_TIMEZONE_NAME = 'America/Sao_Paulo';
+    use UserManagementAuthorizationTrait;
+    use AccountRegistrationTrait;
+    use UserTimezoneResolverTrait;
 
     private $request;
 
@@ -133,7 +135,9 @@ class UserService
 
     public function getUserSession(User $user)
     {
-        $resolvedRoles = $this->peopleRoleService->getGrantedRoles($user->getPeople());
+        $resolvedRoles = $user->getPeople()->getId()
+            ? $this->peopleRoleService->getGrantedRoles($user->getPeople())
+            : [];
         $user->setResolvedRoles($resolvedRoles);
 
         $email = '';
@@ -162,7 +166,9 @@ class UserService
             'language' => $user->getPeople()->getLanguage()?->getLanguage(),
             'mycompany' => $this->getCompanyId($user),
             'realname' => $this->getUserRealName($user->getPeople()),
-            'avatar' => $this->fileService->getFileUrl($user->getPeople()),
+            'avatar' => $user->getPeople()->getId()
+                ? $this->fileService->getFileUrl($user->getPeople())
+                : '',
             'email' => $email,
             'phone' => sprintf('%s%s', $code, $number),
             'active' => (int) $user->getPeople()->getEnabled(),
@@ -238,14 +244,19 @@ class UserService
             throw new Exception("User already exists", 301);
         }
 
+        $user = $this->buildNewUser($people, $username, $password, $timezone ?? $this->resolveDefaultTimezone());
+        $this->manager->persist($user);
+        $this->manager->flush();
+        return $user;
+    }
+
+    private function buildNewUser(People $people, string $username, string $password, Timezone $timezone): User
+    {
         $user = new User();
         $user->setPeople($people);
         $user->setHash($this->passwordHasher->hashPassword($user, $password));
         $user->setUsername($username);
-        $user->setTimezone($timezone ?? $this->resolveDefaultTimezone());
-
-        $this->manager->persist($user);
-        $this->manager->flush();
+        $user->setTimezone($timezone);
         return $user;
     }
 
@@ -439,156 +450,6 @@ class UserService
         );
     }
 
-    private function denyUnlessCanManagePeople(People $people): void
-    {
-        if ($this->canManagePeople($people)) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException('You should not pass!!!');
-    }
-
-    private function canManagePeople(People $people): bool
-    {
-        $tokenUser = $this->security->getToken()?->getUser();
-        if (is_object($tokenUser) && method_exists($tokenUser, 'getRoles') && in_array('ROLE_SUPER', $tokenUser->getRoles() ?: [], true)) {
-            return true;
-        }
-
-        $myPeople = $this->getMyPeople();
-        if (!$myPeople instanceof People) {
-            return false;
-        }
-
-        // Operator may manage their own people record (self-service / profile update path).
-        if ((int) $myPeople->getId() === (int) $people->getId()) {
-            return true;
-        }
-
-        $managedCompanyIds = array_map(
-            static fn(People $company): int => (int) $company->getId(),
-            array_filter(
-                $this->getManagedCompanies(),
-                fn(People $company): bool => $this->isPeopleEnabled($company)
-            )
-        );
-
-        if ($managedCompanyIds === []) {
-            return false;
-        }
-
-        // Target may be the company itself (PJ just created / company profile update).
-        if (in_array((int) $people->getId(), $managedCompanyIds, true)) {
-            return true;
-        }
-
-        $targetCompanyIds = $this->getCompanyIdsForPeople($people);
-        if ($targetCompanyIds === []) {
-            return false;
-        }
-
-        return array_intersect($managedCompanyIds, $targetCompanyIds) !== [];
-    }
-
-    private function getCompanyIdsForPeople(People $people): array
-    {
-        $companyIds = [];
-
-        foreach ($people->getLink() as $link) {
-            if (!$link instanceof PeopleLink || !$this->isLinkEnabled($link)) {
-                continue;
-            }
-
-            $company = $link->getCompany();
-            if (!$company instanceof People || !$this->isPeopleEnabled($company)) {
-                continue;
-            }
-
-            $companyIds[] = (int) $company->getId();
-        }
-
-        return array_values(array_unique(array_filter($companyIds)));
-    }
-
-    private function isLinkEnabled(PeopleLink $link): bool
-    {
-        if (!method_exists($link, 'getEnabled')) {
-            return true;
-        }
-
-        return (bool) $link->getEnabled();
-    }
-
-    private function isPeopleEnabled(People $people): bool
-    {
-        if (!method_exists($people, 'getEnabled')) {
-            return true;
-        }
-
-        return (bool) $people->getEnabled();
-    }
-
-
-    private function resolveTimezoneForUserCreate(array $payload): Timezone
-    {
-        if (
-            array_key_exists('timezone', $payload) ||
-            array_key_exists('timezone_id', $payload) ||
-            array_key_exists('timezoneId', $payload)
-        ) {
-            $timezone = $this->resolveTimezoneFromPayload($payload);
-            if ($timezone instanceof Timezone) {
-                return $timezone;
-            }
-        }
-
-        return $this->resolveDefaultTimezone();
-    }
-
-    private function resolveDefaultTimezone(): Timezone
-    {
-        $repository = $this->manager->getRepository(Timezone::class);
-        $timezone = $repository->findOneBy(['name' => self::DEFAULT_TIMEZONE_NAME])
-            ?: $repository->findOneBy(['name' => 'UTC']);
-
-        if (!$timezone instanceof Timezone) {
-            throw new BadRequestHttpException('timezone is required');
-        }
-
-        return $timezone;
-    }
-
-    private function resolveTimezoneFromPayload(array $payload): ?Timezone
-    {
-        $rawTimezone =
-            $payload['timezone'] ??
-            $payload['timezone_id'] ??
-            $payload['timezoneId'] ??
-            null;
-
-        if ($rawTimezone === null || $rawTimezone === '') {
-            return null;
-        }
-
-        if (is_int($rawTimezone) || (is_string($rawTimezone) && preg_match('#^\d+$#', trim($rawTimezone)))) {
-            $timezone = $this->manager->getRepository(Timezone::class)->find((int) $rawTimezone);
-            return $timezone instanceof Timezone ? $timezone : null;
-        }
-
-        if (is_string($rawTimezone) && preg_match('#^/timezones/(\d+)$#', trim($rawTimezone), $m)) {
-            $timezone = $this->manager->getRepository(Timezone::class)->find((int) $m[1]);
-            return $timezone instanceof Timezone ? $timezone : null;
-        }
-
-        if (is_string($rawTimezone)) {
-            $timezone = $this->manager->getRepository(Timezone::class)->findOneBy(['name' => trim($rawTimezone)]);
-            return $timezone instanceof Timezone ? $timezone : null;
-        }
-
-        return null;
-    }
-
-
     /**
      * Resolve People from payload value: numeric id, "/people/{id}" IRI, or plain digit string.
      */
@@ -617,6 +478,7 @@ class UserService
         $people = $this->manager->getRepository(People::class)->find($peopleId);
         return $people instanceof People ? $people : null;
     }
+
 
     private function decodePayload(?string $content): array
     {

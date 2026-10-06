@@ -113,6 +113,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read'])]
     private People $people;
 
+    #[ORM\ManyToOne(targetEntity: Timezone::class)]
+    #[ORM\JoinColumn(name: 'timezone_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?Timezone $timezone = null;
+
+    public function getTimezone(): ?Timezone
+    {
+        return $this->timezone;
+    }
+
+    public function setTimezone(?Timezone $timezone): self
+    {
+        $this->timezone = $timezone;
+        return $this;
+    }
+
     public function __construct()
     {
         $this->generateApiKey();

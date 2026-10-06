@@ -14,6 +14,14 @@ namespace Doctrine\ORM {
         public function getConnection();
     }
 
+    class EntityRepository
+    {
+        public function findOneBy(array $criteria): mixed
+        {
+            return null;
+        }
+    }
+
     abstract class QueryBuilder
     {
         abstract public function getAllAliases();
@@ -31,17 +39,23 @@ namespace Doctrine\ORM {
 }
 
 namespace Symfony\Component\HttpFoundation {
-    class JsonResponse
+    class JsonResponse extends Response
     {
         public function __construct(
             private array $data = [],
-            private int $status = 200
+            int $status = 200,
+            array $headers = []
         ) {
+            parent::__construct(
+                json_encode($data, JSON_THROW_ON_ERROR),
+                $status,
+                ['Content-Type' => 'application/json'] + $headers
+            );
         }
 
         public function getStatusCode(): int
         {
-            return $this->status;
+            return parent::getStatusCode();
         }
 
         public function getData(bool $assoc = false): array
@@ -89,6 +103,16 @@ namespace Symfony\Component\PasswordHasher\Hasher {
     }
 }
 
+namespace Symfony\Component\Security\Core\User {
+    interface UserInterface
+    {
+    }
+
+    interface PasswordAuthenticatedUserInterface
+    {
+    }
+}
+
 namespace Symfony\Component\Security\Core\Authentication\Token {
     interface TokenInterface
     {
@@ -108,8 +132,16 @@ namespace Symfony\Component\Security\Core\Authentication\Token\Storage {
 namespace ControleOnline\Entity {
     class Email
     {
+        private string $email = '';
+
+        public function getEmail(): string
+        {
+            return $this->email;
+        }
+
         public function setEmail(string $email): self
         {
+            $this->email = $email;
             return $this;
         }
 
@@ -151,6 +183,16 @@ namespace ControleOnline\Entity {
         {
         }
 
+        public function add(object $item): void
+        {
+            $this->items[] = $item;
+        }
+
+        public function count(): int
+        {
+            return count($this->items);
+        }
+
         public function first(): mixed
         {
             return $this->items[0] ?? false;
@@ -162,8 +204,9 @@ namespace ControleOnline\Entity {
         }
     }
 
-    class User
-    {
+    if (!class_exists(User::class)) {
+        class User
+        {
         private ?int $id = null;
         private ?People $people = null;
         private string $username = '';
@@ -229,19 +272,21 @@ namespace ControleOnline\Entity {
         {
             return $this;
         }
+        }
     }
 
     class People
     {
+        private ?LinkCollection $email = null;
         public function __construct(
-            private int $id = 0,
+            private ?int $id = null,
             private ?LinkCollection $link = null,
             private int $enabled = 1
         ) {
             $this->link ??= new LinkCollection();
         }
 
-        public function getId(): int
+        public function getId(): ?int
         {
             return $this->id;
         }
@@ -251,19 +296,25 @@ namespace ControleOnline\Entity {
             return $this->link;
         }
 
-        public function getEmail(): object
+        public function getEmail(): LinkCollection
         {
-            return new class {
-                public function count(): int
-                {
-                    return 0;
-                }
+            return $this->email ??= new LinkCollection();
+        }
 
-                public function first(): mixed
-                {
-                    return null;
-                }
-            };
+        public function getOneEmail(): ?Email
+        {
+            return $this->getEmail()->first() ?: null;
+        }
+
+        public function getFullName(): string
+        {
+            return $this->getName() . ' ' . $this->getAlias();
+        }
+
+        public function setEnabled(bool $enabled): self
+        {
+            $this->enabled = (int) $enabled;
+            return $this;
         }
 
         public function getPhone(): object
@@ -323,6 +374,15 @@ namespace ControleOnline\Entity {
     }
 }
 
+namespace App\Service {
+    class EmailService
+    {
+        public function sendMessage(string $recipient, string $subject, string $message): void
+        {
+        }
+    }
+}
+
 namespace ControleOnline\Service {
     use ControleOnline\Entity\PeopleLink;
 
@@ -361,6 +421,9 @@ namespace ControleOnline\Service {
 }
 
 namespace {
+    require_once __DIR__ . '/../src/Service/UserManagementAuthorizationTrait.php';
+    require_once __DIR__ . '/../src/Service/AccountRegistrationTrait.php';
+    require_once __DIR__ . '/../src/Service/UserTimezoneResolverTrait.php';
     require_once __DIR__ . '/../src/Service/UserService.php';
     require_once __DIR__ . '/../src/Controller/DeleteUserAction.php';
 }

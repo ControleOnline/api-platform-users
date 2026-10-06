@@ -3,7 +3,6 @@
 namespace ControleOnline\Tests\Service;
 
 require_once dirname(__DIR__, 2) . '/src/Service/PublicAppUrlResolver.php';
-require_once dirname(__DIR__) . '/Stub/DomainService.php';
 
 use ControleOnline\Service\DomainService;
 use ControleOnline\Service\PublicAppUrlResolver;

@@ -14,9 +14,9 @@ class DeleteUserActionTest extends TestCase
     public function testInvokeDelegatesDeletionToUserService(): void
     {
         $people = new People(7);
-        $user = (new User())
-            ->setId(11)
-            ->setPeople($people);
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(11);
+        $user->method('getPeople')->willReturn($people);
 
         $service = $this->createMock(UserService::class);
         $service
