@@ -48,20 +48,10 @@ class UserServiceCreateAccountTest extends TestCase
     {
         $persisted = [];
         $manager = $this->createMock(EntityManagerInterface::class);
-        $repository = new class {
-            public function findOneBy(array $criteria): mixed
-            {
-                return null;
-            }
-        };
+        $repository = $this->repositoryReturning(null);
         $timezone = (new \ControleOnline\Entity\Timezone())->setName('America/Sao_Paulo');
-        $timezoneRepository = new class($timezone) {
-            public function __construct(private object $timezone) {}
-            public function findOneBy(array $criteria): object { return $this->timezone; }
-        };
-        $languageRepository = new class {
-            public function findOneBy(array $criteria): object { return new \ControleOnline\Entity\Language(); }
-        };
+        $timezoneRepository = $this->repositoryReturning($timezone);
+        $languageRepository = $this->repositoryReturning((new \ControleOnline\Entity\Language())->setLanguage('pt-BR'));
         $manager->method('getRepository')->willReturnCallback(static fn(string $class) => match ($class) {
             \ControleOnline\Entity\Timezone::class => $timezoneRepository,
             \ControleOnline\Entity\Language::class => $languageRepository,
@@ -91,15 +81,13 @@ class UserServiceCreateAccountTest extends TestCase
     public function testDuplicateRegistrationDoesNotMutateOrReturnExistingSession(): void
     {
         $manager = $this->createMock(EntityManagerInterface::class);
-        $repository = new class {
-            public function findOneBy(array $criteria): User { return new User(); }
-        };
+        $repository = $this->repositoryReturning(new User());
         $manager->expects(self::once())->method('getRepository')->with(User::class)->willReturn($repository);
         $manager->expects(self::never())->method('persist');
         $manager->expects(self::never())->method('flush');
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->expects(self::never())->method('hashPassword');
-        $service = new UserService($manager, $hasher, new FileService(), $this->createStub(TokenStorageInterface::class), new PeopleRoleService(), new RequestStack());
+        $service = new UserService($manager, $hasher, $this->createStub(FileService::class), $this->createStub(TokenStorageInterface::class), $this->createStub(PeopleRoleService::class), new RequestStack());
         $this->expectException(BadRequestHttpException::class);
         $service->createAccountSessionFromContent($this->signupPayload());
     }
@@ -107,12 +95,8 @@ class UserServiceCreateAccountTest extends TestCase
     public function testPublicRegistrationCannotClaimAPersonWithAnExistingEmail(): void
     {
         $manager = $this->createMock(EntityManagerInterface::class);
-        $emptyUsers = new class {
-            public function findOneBy(array $criteria): mixed { return null; }
-        };
-        $existingEmails = new class {
-            public function findOneBy(array $criteria): object { return new \ControleOnline\Entity\Email(); }
-        };
+        $emptyUsers = $this->repositoryReturning(null);
+        $existingEmails = $this->repositoryReturning(new \ControleOnline\Entity\Email());
         $manager->expects(self::exactly(2))->method('getRepository')->willReturnCallback(
             static fn(string $class): object => match ($class) {
                 User::class => $emptyUsers,
@@ -123,7 +107,7 @@ class UserServiceCreateAccountTest extends TestCase
         $manager->expects(self::never())->method('flush');
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->expects(self::never())->method('hashPassword');
-        $service = new UserService($manager, $hasher, new FileService(), $this->createStub(TokenStorageInterface::class), new PeopleRoleService(), new RequestStack());
+        $service = new UserService($manager, $hasher, $this->createStub(FileService::class), $this->createStub(TokenStorageInterface::class), $this->createStub(PeopleRoleService::class), new RequestStack());
         $this->expectException(BadRequestHttpException::class);
         $service->createAccountSessionFromContent($this->signupPayload());
     }
@@ -134,7 +118,7 @@ class UserServiceCreateAccountTest extends TestCase
         $manager->expects(self::never())->method('getRepository');
         $manager->expects(self::never())->method('persist');
         $manager->expects(self::never())->method('flush');
-        $service = new UserService($manager, $this->createStub(UserPasswordHasherInterface::class), new FileService(), $this->createStub(TokenStorageInterface::class), new PeopleRoleService(), new RequestStack());
+        $service = new UserService($manager, $this->createStub(UserPasswordHasherInterface::class), $this->createStub(FileService::class), $this->createStub(TokenStorageInterface::class), $this->createStub(PeopleRoleService::class), new RequestStack());
         $this->expectException(\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException::class);
         $service->createUser(new People(), 'maria@example.com', 'secret');
     }
@@ -156,4 +140,10 @@ class UserServiceCreateAccountTest extends TestCase
         );
     }
 
+    private function repositoryReturning(?object $entity): \Doctrine\ORM\EntityRepository
+    {
+        $repository = $this->createStub(\Doctrine\ORM\EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($entity);
+        return $repository;
+    }
 }
