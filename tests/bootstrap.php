@@ -279,14 +279,14 @@ namespace ControleOnline\Entity {
     {
         private ?LinkCollection $email = null;
         public function __construct(
-            private int $id = 0,
+            private ?int $id = null,
             private ?LinkCollection $link = null,
             private int $enabled = 1
         ) {
             $this->link ??= new LinkCollection();
         }
 
-        public function getId(): int
+        public function getId(): ?int
         {
             return $this->id;
         }
