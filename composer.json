@@ -16,7 +16,7 @@
         }
     ],
     "require": {
-        "controleonline/common": "1.0.4",
+        "controleonline/common": "1.0.5",
         "symfony/cache": "^8.1",
         "symfony/lock": "^8.1",
         "symfony/http-foundation": "^8.1",
