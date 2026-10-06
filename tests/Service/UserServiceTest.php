@@ -5,6 +5,7 @@ namespace ControleOnline\Users\Tests\Service;
 use ControleOnline\Entity\People;
 use ControleOnline\Entity\PeopleLink;
 use ControleOnline\Entity\User;
+use ControleOnline\Entity\Timezone;
 use ControleOnline\Service\FileService;
 use ControleOnline\Service\PeopleRoleService;
 use ControleOnline\Service\UserService;
@@ -28,6 +29,14 @@ class UserServiceTest extends TestCase
             new PeopleLink($company),
         ]));
 
+        $timezone = (new Timezone())->setName('America/Sao_Paulo');
+        $timezoneRepository = new class($timezone) {
+            public function __construct(private Timezone $timezone) {}
+            public function findOneBy(array $criteria): Timezone
+            {
+                return $this->timezone;
+            }
+        };
         $existingUserRepository = new class {
             public function findOneBy(array $criteria): ?User
             {
@@ -37,10 +46,12 @@ class UserServiceTest extends TestCase
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager
-            ->expects(self::once())
+            ->expects(self::exactly(2))
             ->method('getRepository')
-            ->with(User::class)
-            ->willReturn($existingUserRepository);
+            ->willReturnCallback(static fn(string $class): object => match ($class) {
+                User::class => $existingUserRepository,
+                Timezone::class => $timezoneRepository,
+            });
         $manager->expects(self::once())->method('persist');
         $manager->expects(self::once())->method('flush');
 
@@ -51,6 +62,7 @@ class UserServiceTest extends TestCase
         self::assertSame($targetPeople, $created->getPeople());
         self::assertSame('manager@example.com', $created->getUsername());
         self::assertSame('hashed-secret', $created->getHash());
+        self::assertSame($timezone, $created->getTimezone());
     }
 
     public function testCreateUserRejectsPeopleWhenUserOnlyHasNonAdministrativeLink(): void
