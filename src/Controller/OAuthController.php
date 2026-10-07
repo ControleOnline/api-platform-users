@@ -43,8 +43,12 @@ final class OAuthController
     {
         try {
             $params = $this->oauthService->validateAuthorizationRequest($request->query->all());
-        } catch (\InvalidArgumentException) {
-            return $this->oauthError('invalid_request', Response::HTTP_BAD_REQUEST);
+        } catch (\InvalidArgumentException $exception) {
+            return $this->oauthError(
+                'invalid_request',
+                Response::HTTP_BAD_REQUEST,
+                $exception->getMessage()
+            );
         }
 
         // Resolve the consent origin from tenant-aware configuration, never from a request redirect.
@@ -101,9 +105,14 @@ final class OAuthController
         return new Response('', Response::HTTP_OK, $this->noStoreHeaders());
     }
 
-    private function oauthError(string $error, int $status): JsonResponse
+    private function oauthError(string $error, int $status, ?string $description = null): JsonResponse
     {
-        return new JsonResponse(['error' => $error], $status, $this->noStoreHeaders());
+        $body = ['error' => $error];
+        if ($description !== null) {
+            $body['error_description'] = $description;
+        }
+
+        return new JsonResponse($body, $status, $this->noStoreHeaders());
     }
 
     /** @return array<string, string> */
