@@ -1,25 +1,12 @@
-checks:
-  php: true
-
 build:
-  nodes:
-    analysis:
-      environment:
-        php:
-          version: "8.3.0"
-      dependencies:
-        override:
-          - composer self-update --2
-          - composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-security-blocking
-          - composer require --dev --no-interaction --no-progress --no-scripts squizlabs/php_codesniffer:^3.11
-      tests:
-        override:
-          - command: phpcs-run
-            use_website_config: true
+  dependencies:
+    override:
+      - composer install --no-interaction --prefer-dist
 
-filter:
-  excluded_paths:
-    - "tests/*"
-    - "var/*"
-    - "vendor/*"
-    - "public/vendor/*"
+  project_setup:
+    override:
+      - true
+
+  tests:
+    override:
+      - vendor/bin/phpunit
