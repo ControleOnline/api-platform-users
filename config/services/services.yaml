@@ -24,6 +24,7 @@ services:
             $allowedScopes: ['mcp:read']
             $cache: '@cache.app'
             $lockFactory: '@lock.factory'
+            $defaultScopes: ['mcp:read']
     ControleOnline\EventListener\OAuthTenantRequestListener:
         tags:
             # MultiTenancy's DatabaseSwitchListener runs at priority 512.
