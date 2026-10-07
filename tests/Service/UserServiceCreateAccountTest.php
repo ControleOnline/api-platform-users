@@ -9,6 +9,8 @@ use ControleOnline\Service\PeopleRoleService;
 use ControleOnline\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -42,64 +44,106 @@ class UserServiceCreateAccountTest extends TestCase
         ], JSON_THROW_ON_ERROR));
     }
 
-    public function testBuildsSessionUsingSplitNameAndUserCreationFlow(): void
+    public function testAnonymousRegistrationCreatesANewIdentityWithoutAdministrativeAccess(): void
     {
-        $people = new People();
-        $user = $this->createMock(User::class);
+        $persisted = [];
+        $manager = $this->createMock(EntityManagerInterface::class);
+        $repository = $this->repositoryReturning(null);
+        $timezone = (new \ControleOnline\Entity\Timezone())->setName('America/Sao_Paulo');
+        $timezoneRepository = $this->repositoryReturning($timezone);
+        $languageRepository = $this->repositoryReturning((new \ControleOnline\Entity\Language())->setLanguage('pt-BR'));
+        $manager->method('getRepository')->willReturnCallback(static fn(string $class) => match ($class) {
+            \ControleOnline\Entity\Timezone::class => $timezoneRepository,
+            \ControleOnline\Entity\Language::class => $languageRepository,
+            default => $repository,
+        });
+        $manager->expects(self::exactly(3))->method('persist')->willReturnCallback(
+            static function (object $entity) use (&$persisted): void { $persisted[] = $entity; }
+        );
+        $manager->expects(self::once())->method('flush');
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->expects(self::once())->method('hashPassword')->with(self::isInstanceOf(User::class), 'secret')->willReturn('hashed-secret');
+        $fileService = $this->createMock(FileService::class);
+        $fileService->expects(self::never())->method('getFileUrl');
+        $roles = $this->createMock(PeopleRoleService::class);
+        $roles->expects(self::never())->method('getGrantedRoles');
+        $service = new UserService($manager, $hasher, $fileService, $this->createStub(TokenStorageInterface::class), $roles, new RequestStack());
 
-        $service = $this->createPartialMockedService();
-        $service
-            ->expects(self::once())
-            ->method('discoveryPeople')
-            ->with('maria@example.com', 'Maria', 'Silva')
-            ->willReturn($people);
-        $service
-            ->expects(self::once())
-            ->method('createUser')
-            ->with($people, 'maria@example.com', 'secret')
-            ->willReturn($user);
-        $service
-            ->expects(self::once())
-            ->method('getUserSession')
-            ->with($user)
-            ->willReturn([
-                'id' => 15,
-                'username' => 'maria@example.com',
-                'api_key' => 'abc123',
-            ]);
+        $session = $service->createAccountSessionFromContent($this->signupPayload());
+        self::assertSame('maria@example.com', $session['username']);
+        self::assertSame([], $session['roles']);
+        self::assertCount(3, $persisted);
+        $users = array_values(array_filter($persisted, static fn(object $entity) => $entity instanceof User));
+        self::assertSame('hashed-secret', $users[0]->getHash());
+        self::assertSame($timezone, $users[0]->getTimezone());
+    }
 
-        self::assertSame([
-            'id' => 15,
-            'username' => 'maria@example.com',
-            'api_key' => 'abc123',
-        ], $service->createAccountSessionFromContent(json_encode([
-            'name' => 'Maria Silva',
-            'email' => 'maria@example.com',
-            'password' => 'secret',
-            'confirmPassword' => 'secret',
-        ], JSON_THROW_ON_ERROR)));
+    public function testDuplicateRegistrationDoesNotMutateOrReturnExistingSession(): void
+    {
+        $manager = $this->createMock(EntityManagerInterface::class);
+        $repository = $this->repositoryReturning(new User());
+        $manager->expects(self::once())->method('getRepository')->with(User::class)->willReturn($repository);
+        $manager->expects(self::never())->method('persist');
+        $manager->expects(self::never())->method('flush');
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->expects(self::never())->method('hashPassword');
+        $service = new UserService($manager, $hasher, $this->createStub(FileService::class), $this->createStub(TokenStorageInterface::class), $this->createStub(PeopleRoleService::class), new RequestStack());
+        $this->expectException(BadRequestHttpException::class);
+        $service->createAccountSessionFromContent($this->signupPayload());
+    }
+
+    public function testPublicRegistrationCannotClaimAPersonWithAnExistingEmail(): void
+    {
+        $manager = $this->createMock(EntityManagerInterface::class);
+        $emptyUsers = $this->repositoryReturning(null);
+        $existingEmails = $this->repositoryReturning(new \ControleOnline\Entity\Email());
+        $manager->expects(self::exactly(2))->method('getRepository')->willReturnCallback(
+            static fn(string $class): object => match ($class) {
+                User::class => $emptyUsers,
+                \ControleOnline\Entity\Email::class => $existingEmails,
+            }
+        );
+        $manager->expects(self::never())->method('persist');
+        $manager->expects(self::never())->method('flush');
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->expects(self::never())->method('hashPassword');
+        $service = new UserService($manager, $hasher, $this->createStub(FileService::class), $this->createStub(TokenStorageInterface::class), $this->createStub(PeopleRoleService::class), new RequestStack());
+        $this->expectException(BadRequestHttpException::class);
+        $service->createAccountSessionFromContent($this->signupPayload());
+    }
+
+    public function testAnonymousAdministrativeCreationRemainsDeniedBeforeMutation(): void
+    {
+        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager->expects(self::never())->method('getRepository');
+        $manager->expects(self::never())->method('persist');
+        $manager->expects(self::never())->method('flush');
+        $service = new UserService($manager, $this->createStub(UserPasswordHasherInterface::class), $this->createStub(FileService::class), $this->createStub(TokenStorageInterface::class), $this->createStub(PeopleRoleService::class), new RequestStack());
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException::class);
+        $service->createUser(new People(), 'maria@example.com', 'secret');
+    }
+
+    private function signupPayload(): string
+    {
+        return json_encode(['name' => 'Maria Silva', 'email' => 'maria@example.com', 'password' => 'secret', 'confirmPassword' => 'secret'], JSON_THROW_ON_ERROR);
     }
 
     private function createService(): UserService
     {
         return new UserService(
-            $this->createMock(EntityManagerInterface::class),
-            $this->createMock(UserPasswordHasherInterface::class),
-            $this->createMock(FileService::class),
-            $this->createMock(PeopleRoleService::class)
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(UserPasswordHasherInterface::class),
+            $this->createStub(FileService::class),
+            $this->createStub(TokenStorageInterface::class),
+            $this->createStub(PeopleRoleService::class),
+            new RequestStack()
         );
     }
 
-    private function createPartialMockedService(): UserService
+    private function repositoryReturning(?object $entity): \Doctrine\ORM\EntityRepository
     {
-        return $this->getMockBuilder(UserService::class)
-            ->setConstructorArgs([
-                $this->createMock(EntityManagerInterface::class),
-                $this->createMock(UserPasswordHasherInterface::class),
-                $this->createMock(FileService::class),
-                $this->createMock(PeopleRoleService::class),
-            ])
-            ->onlyMethods(['discoveryPeople', 'createUser', 'getUserSession'])
-            ->getMock();
+        $repository = $this->createStub(\Doctrine\ORM\EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($entity);
+        return $repository;
     }
 }

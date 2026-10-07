@@ -13,10 +13,10 @@ class DeleteUserActionTest extends TestCase
 {
     public function testInvokeDelegatesDeletionToUserService(): void
     {
-        $people = new People(7);
-        $user = (new User())
-            ->setId(11)
-            ->setPeople($people);
+        $people = new People();
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(11);
+        $user->method('getPeople')->willReturn($people);
 
         $service = $this->createMock(UserService::class);
         $service
@@ -36,6 +36,6 @@ class DeleteUserActionTest extends TestCase
                 'error' => null,
                 'success' => true,
             ],
-        ], $response->getData(true));
+        ], json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR));
     }
 }

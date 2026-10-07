@@ -264,7 +264,7 @@ final class OAuthServiceTest extends TestCase
         $user = new User();
         $idProperty = new \ReflectionProperty(User::class, 'id');
         $idProperty->setValue($user, $id);
-        $user->setPeople(new People(0, null, 1));
+        $user->setPeople((new People())->setEnabled(1));
 
         return $user;
     }
