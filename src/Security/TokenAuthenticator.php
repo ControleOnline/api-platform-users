@@ -48,6 +48,12 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
                     throw new CustomUserMessageAuthenticationException('Usuário desativado');
                 }
 
+                if ($user->hasExpiredPasswordChangeDeadline()) {
+                    throw new CustomUserMessageAuthenticationException(
+                        'Senha temporária expirada. Solicite uma nova recuperação de senha.'
+                    );
+                }
+
                 $user->setResolvedRoles(
                     $this->peopleRoleService->getGrantedRoles($people)
                 );
@@ -79,6 +85,12 @@ class TokenAuthenticator extends AbstractAuthenticator implements Authentication
             return new JsonResponse([
                 'message' => 'Usuário desativado',
                 'code' => 'USER_DISABLED',
+            ], Response::HTTP_FORBIDDEN);
+        }
+        if (stripos($message, 'temporária expirada') !== false || stripos($message, 'temporaria expirada') !== false) {
+            return new JsonResponse([
+                'message' => 'Senha temporária expirada. Solicite uma nova recuperação de senha.',
+                'code' => 'TEMPORARY_PASSWORD_EXPIRED',
             ], Response::HTTP_FORBIDDEN);
         }
         return new JsonResponse(['message' => 'Authentication failed'], Response::HTTP_UNAUTHORIZED);

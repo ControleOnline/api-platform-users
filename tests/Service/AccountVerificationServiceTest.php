@@ -8,6 +8,7 @@ use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
 use ControleOnline\Service\AccountVerificationService;
 use ControleOnline\Service\DomainService;
+use ControleOnline\Service\PublicAppUrlResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
@@ -45,9 +46,9 @@ class AccountVerificationServiceTest extends TestCase
                     $capturedMessage = $html;
 
                     return str_contains($html, 'confirm-account?hash=')
-                        && str_contains($html, 'Olá')
-                        && str_contains($html, 'ativação')
-                        && str_contains($html, 'Se você não reconhece este cadastro');
+                        && str_contains($html, 'Ola')
+                        && str_contains($html, 'confirmar sua conta')
+                        && str_contains($html, 'Se voce nao criou esta conta');
                 })
             );
 
@@ -78,14 +79,14 @@ class AccountVerificationServiceTest extends TestCase
         $service = new AccountVerificationService(
             $manager,
             $emailService,
-            $domainService,
+            new PublicAppUrlResolver($domainService),
         );
 
         $service->sendVerification($user);
 
         self::assertNotNull($capturedMessage);
         self::assertStringContainsString('https://app.lave-go.com/confirm-account?', $capturedMessage);
-        self::assertStringContainsString('Confirmar cadastro', $capturedMessage);
+        self::assertStringContainsString('Confirme seu cadastro', $capturedMessage);
         preg_match('/href="([^"]+)"/', $capturedMessage, $matches);
         self::assertNotEmpty($matches[1] ?? null);
 
