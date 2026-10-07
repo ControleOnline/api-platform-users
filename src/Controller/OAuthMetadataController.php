@@ -35,12 +35,19 @@ final class OAuthMetadataController
     }
 
     #[Route('/.well-known/oauth-protected-resource', name: 'users_oauth_resource_metadata', methods: ['GET'])]
-    public function protectedResource(): JsonResponse
+    #[Route('/.well-known/oauth-protected-resource/mcp', name: 'users_oauth_mcp_resource_metadata', methods: ['GET'])]
+    #[Route('/.well-known/oauth-protected-resource/mcp/{tenantDomain}', name: 'users_oauth_mcp_tenant_resource_metadata', methods: ['GET'], requirements: ['tenantDomain' => '[A-Za-z0-9.-]+'])]
+    public function protectedResource(?string $tenantDomain = null): JsonResponse
     {
         $issuer = $this->oauthService->getIssuer();
+        try {
+            $resource = $this->oauthService->protectedResourceIdentifier($tenantDomain);
+        } catch (\InvalidArgumentException) {
+            return new JsonResponse(['error' => 'invalid_resource'], 400);
+        }
 
         return new JsonResponse([
-            'resource' => $issuer . '/mcp',
+            'resource' => $resource,
             'authorization_servers' => [$issuer],
             'scopes_supported' => ['mcp:read'],
             'bearer_methods_supported' => ['header'],

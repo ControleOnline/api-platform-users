@@ -6,6 +6,7 @@ namespace ControleOnline\Tests\Service;
 
 use ControleOnline\Entity\People;
 use ControleOnline\Entity\User;
+use ControleOnline\Controller\OAuthMetadataController;
 use ControleOnline\EventListener\OAuthTenantRequestListener;
 use ControleOnline\Service\DomainService;
 use ControleOnline\Service\OAuthService;
@@ -63,6 +64,7 @@ final class OAuthServiceTest extends TestCase
             'response_type' => 'code',
             'client_id' => $client['client_id'],
             'redirect_uri' => $client['redirect_uris'][0],
+            'resource' => $this->oauthService->protectedResourceIdentifier('tenant-a.example'),
             'state' => bin2hex(random_bytes(16)),
             'code_challenge' => $challenge,
             'code_challenge_method' => 'S256',
@@ -116,6 +118,7 @@ final class OAuthServiceTest extends TestCase
             'response_type' => 'code',
             'client_id' => $client['client_id'],
             'redirect_uri' => $redirectUri,
+            'resource' => $this->oauthService->protectedResourceIdentifier('tenant-a.example'),
             'state' => 'state-revoke',
             'code_challenge' => $challenge,
             'code_challenge_method' => 'S256',
@@ -156,6 +159,7 @@ final class OAuthServiceTest extends TestCase
             'response_type' => 'code',
             'client_id' => $client['client_id'],
             'redirect_uri' => $client['redirect_uris'][0],
+            'resource' => $this->oauthService->protectedResourceIdentifier('tenant-a.example'),
             'state' => 'state-123',
             'code_challenge' => $challenge,
             'code_challenge_method' => 'S256',
@@ -191,12 +195,16 @@ final class OAuthServiceTest extends TestCase
         self::assertNull($event->getResponse());
         self::assertFalse($event->isPropagationStopped());
 
-        $requestWithoutBearer = Request::create('/mcp', 'POST');
+        $requestWithoutBearer = Request::create('/mcp/tenant-a.example', 'POST');
         $requestWithoutBearer->headers->set('app-domain', 'attacker.example');
         $missingBearerEvent = new RequestEvent($this->createStub(HttpKernelInterface::class), $requestWithoutBearer, HttpKernelInterface::MAIN_REQUEST);
         $this->listener()->onKernelRequest($missingBearerEvent);
 
         self::assertSame(401, $missingBearerEvent->getResponse()?->getStatusCode());
+        self::assertSame(
+            'Bearer error="invalid_token", resource_metadata="https://api.controleonline.com/.well-known/oauth-protected-resource/mcp/tenant-a.example"',
+            $missingBearerEvent->getResponse()?->headers->get('WWW-Authenticate')
+        );
         self::assertTrue($missingBearerEvent->isPropagationStopped());
         self::assertSame('attacker.example', $requestWithoutBearer->headers->get('app-domain'));
     }
@@ -222,7 +230,7 @@ final class OAuthServiceTest extends TestCase
         $request = Request::create('/mcp', 'POST');
         $request->headers->set('app-domain', 'forged.example');
         $request->headers->set('Origin', 'https://forged.example');
-        $request->headers->set('Authorization', 'Bearer ' . $this->issueAccessToken(10));
+        $request->headers->set('Authorization', 'Bearer ' . $this->issueAccessToken(10, false));
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
         $this->listener()->onKernelRequest($event);
@@ -230,6 +238,74 @@ final class OAuthServiceTest extends TestCase
         self::assertNull($event->getResponse());
         self::assertSame($this->mainDomain, $request->headers->get('app-domain'));
         self::assertSame($this->mainDomain, $request->attributes->get('app-domain'));
+    }
+
+    public function testAuthorizationRequestSelectsTheResourceTenantBeforeDatabaseSwitch(): void
+    {
+        $request = Request::create('/oauth/authorize', 'GET', [
+            'resource' => $this->oauthService->protectedResourceIdentifier('tenant-b.example'),
+        ]);
+        $request->headers->set('app-domain', 'forged.example');
+        $request->headers->set('Origin', 'https://forged.example');
+        $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $this->listener()->onKernelRequest($event);
+
+        self::assertNull($event->getResponse());
+        self::assertSame('tenant-b.example', $request->headers->get('app-domain'));
+        self::assertSame('tenant-b.example', $request->attributes->get('app-domain'));
+    }
+
+    public function testConsentPostSelectsTheResourceTenantBeforeDatabaseSwitch(): void
+    {
+        $resource = $this->oauthService->protectedResourceIdentifier('tenant-c.example');
+        $request = Request::create(
+            '/oauth/authorize',
+            'POST',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['resource' => $resource], JSON_THROW_ON_ERROR),
+        );
+        $request->headers->set('app-domain', 'forged.example');
+        $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $this->listener()->onKernelRequest($event);
+
+        self::assertNull($event->getResponse());
+        self::assertSame('tenant-c.example', $request->headers->get('app-domain'));
+        self::assertSame('tenant-c.example', $request->attributes->get('app-domain'));
+    }
+
+    public function testAuthorizationWithoutResourceDefaultsToMainDomain(): void
+    {
+        $this->authorizedTenant = $this->mainDomain;
+        $token = $this->issueAccessToken(11, false);
+
+        self::assertSame($this->mainDomain, $this->oauthService->resolveAccessToken($token)['tenant']);
+    }
+
+    public function testAuthorizationCannotIssueTokenForDifferentDatabaseTenant(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->issueAccessToken(12, true, 'other.example');
+    }
+
+    public function testRejectsProtectedResourceFromAnotherOrigin(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->oauthService->resolveTenantFromResource('https://attacker.example/mcp/tenant-a.example');
+    }
+
+    public function testProtectedResourceMetadataReflectsTheTenantPath(): void
+    {
+        $response = (new OAuthMetadataController($this->oauthService))
+            ->protectedResource('tenant-a.example');
+
+        self::assertSame(
+            'https://api.controleonline.com/mcp/tenant-a.example',
+            json_decode((string) $response->getContent(), true)['resource']
+        );
     }
 
     public function testMcpPreflightDoesNotRequireBearerOrSwitchTenant(): void
@@ -269,7 +345,7 @@ final class OAuthServiceTest extends TestCase
         return $user;
     }
 
-    private function issueAccessToken(int $userId): string
+    private function issueAccessToken(int $userId, bool $includeResource = true, ?string $resourceTenant = null): string
     {
         $client = $this->oauthService->registerClient([
             'client_name' => 'Desktop MCP',
@@ -277,7 +353,7 @@ final class OAuthServiceTest extends TestCase
         ]);
         $verifier = str_repeat('c', 43);
         $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
-        $authorization = $this->oauthService->authorize($this->activeUser($userId), [
+        $authorizationParams = [
             'response_type' => 'code',
             'client_id' => $client['client_id'],
             'redirect_uri' => $client['redirect_uris'][0],
@@ -286,7 +362,13 @@ final class OAuthServiceTest extends TestCase
             'code_challenge_method' => 'S256',
             'scope' => 'mcp:read',
             'decision' => 'approve',
-        ]);
+        ];
+        if ($includeResource) {
+            $authorizationParams['resource'] = $this->oauthService->protectedResourceIdentifier(
+                $resourceTenant ?? $this->authorizedTenant
+            );
+        }
+        $authorization = $this->oauthService->authorize($this->activeUser($userId), $authorizationParams);
         parse_str((string) parse_url($authorization['redirect_to'], PHP_URL_QUERY), $callback);
 
         return $this->oauthService->exchangeAuthorizationCode([
@@ -300,6 +382,6 @@ final class OAuthServiceTest extends TestCase
 
     private function listener(): OAuthTenantRequestListener
     {
-        return new OAuthTenantRequestListener($this->oauthService, $this->domainService);
+        return new OAuthTenantRequestListener($this->oauthService);
     }
 }

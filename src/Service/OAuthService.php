@@ -124,6 +124,13 @@ final class OAuthService
             }
         }
 
+        if (isset($params['resource']) && !is_string($params['resource'])) {
+            throw new \InvalidArgumentException('Invalid protected resource');
+        }
+
+        $resource = trim((string) ($params['resource'] ?? ($this->issuer . '/mcp')));
+        $this->resolveTenantFromResource($resource);
+
         return [
             'response_type' => 'code',
             'client_id' => $clientId,
@@ -133,6 +140,7 @@ final class OAuthService
             'code_challenge' => $challenge,
             'code_challenge_method' => 'S256',
             'scope' => implode(' ', array_values(array_unique($requestedScopes))),
+            'resource' => $resource,
         ];
     }
 
@@ -155,11 +163,16 @@ final class OAuthService
             throw new \InvalidArgumentException('Active user required');
         }
 
+        $tenant = $this->resolveTenantFromResource($authorization['resource']);
+        if (strcasecmp($tenant, $this->normalizeTenantDomain((string) $this->domainService->getDomain())) !== 0) {
+            throw new \InvalidArgumentException('Authenticated tenant does not match protected resource');
+        }
+
         $jti = bin2hex(random_bytes(24));
         $code = $this->sign([
             'type' => 'authorization_code',
             'sub' => (int) $user->getId(),
-            'tenant' => $this->domainService->getDomain(),
+            'tenant' => $tenant,
             'client_id_hash' => hash('sha256', $authorization['client_id']),
             'redirect_uri' => $authorization['redirect_uri'],
             'state' => $authorization['state'],
@@ -298,6 +311,48 @@ final class OAuthService
         return $this->issuer;
     }
 
+    public function resolveTenantFromResource(?string $resource): string
+    {
+        $mainDomain = (string) $this->domainService->getMainDomain();
+        if ($resource === null || trim($resource) === '') {
+            return $this->normalizeTenantDomain($mainDomain);
+        }
+
+        $resourceParts = parse_url(trim($resource));
+        $issuerParts = parse_url($this->issuer);
+        if (!is_array($resourceParts)
+            || !is_array($issuerParts)
+            || strtolower((string) ($resourceParts['scheme'] ?? '')) !== strtolower((string) ($issuerParts['scheme'] ?? ''))
+            || strtolower((string) ($resourceParts['host'] ?? '')) !== strtolower((string) ($issuerParts['host'] ?? ''))
+            || ($resourceParts['port'] ?? null) !== ($issuerParts['port'] ?? null)
+            || isset($resourceParts['user'])
+            || isset($resourceParts['pass'])
+            || isset($resourceParts['query'])
+            || isset($resourceParts['fragment'])) {
+            throw new \InvalidArgumentException('Invalid protected resource');
+        }
+
+        $path = (string) ($resourceParts['path'] ?? '');
+        if (preg_match('#^/mcp(?:/([^/]+))?$#', $path, $matches) !== 1) {
+            throw new \InvalidArgumentException('Invalid protected resource');
+        }
+
+        $tenantDomain = isset($matches[1]) ? rawurldecode($matches[1]) : $mainDomain;
+
+        return $this->normalizeTenantDomain($tenantDomain);
+    }
+
+    public function protectedResourceIdentifier(?string $tenantDomain = null): string
+    {
+        if ($tenantDomain === null || trim($tenantDomain) === '') {
+            return $this->issuer . '/mcp';
+        }
+
+        $tenantDomain = $this->normalizeTenantDomain(rawurldecode($tenantDomain));
+
+        return $this->issuer . '/mcp/' . rawurlencode($tenantDomain);
+    }
+
     /**
      * @param array<string, mixed> $claims
      */
@@ -387,6 +442,21 @@ final class OAuthService
         }
 
         return $scheme === 'http' && in_array($host, ['localhost', '127.0.0.1', '[::1]', '::1'], true);
+    }
+
+    private function normalizeTenantDomain(string $domain): string
+    {
+        $domain = trim($domain);
+        if (preg_match('/^[a-z0-9.-]+(?::[0-9]{1,5})?$/iD', $domain) !== 1) {
+            throw new \InvalidArgumentException('Invalid protected resource');
+        }
+
+        $host = preg_replace('/:[0-9]{1,5}$/', '', $domain);
+        if (!is_string($host) || filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) === false) {
+            throw new \InvalidArgumentException('Invalid protected resource');
+        }
+
+        return strtolower($domain);
     }
 
     /** @param array<string, string> $query */
