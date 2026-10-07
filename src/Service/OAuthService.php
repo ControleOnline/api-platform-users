@@ -25,6 +25,7 @@ final class OAuthService
         private readonly DomainService $domainService,
         private readonly CacheItemPoolInterface $cache,
         private readonly LockFactory $lockFactory,
+        private readonly array $defaultScopes = [],
     ) {
         $issuer = trim($issuer);
         $this->issuer = rtrim(
@@ -113,11 +114,13 @@ final class OAuthService
             throw new \InvalidArgumentException('PKCE S256 is required');
         }
 
-        if (($params['scope'] ?? '') === '') {
+        $scope = trim((string) ($params['scope'] ?? ''));
+        $requestedScopes = $scope === ''
+            ? $this->defaultScopes
+            : (preg_split('/\\s+/', $scope) ?: []);
+        if ($requestedScopes === []) {
             throw new \InvalidArgumentException('At least one scope is required');
         }
-
-        $requestedScopes = preg_split('/\\s+/', trim((string) $params['scope'])) ?: [];
         foreach ($requestedScopes as $scope) {
             if ($scope === '' || !in_array($scope, $this->allowedScopes, true)) {
                 throw new \InvalidArgumentException('Unsupported scope');

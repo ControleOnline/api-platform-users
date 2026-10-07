@@ -38,7 +38,8 @@ final class OAuthServiceTest extends TestCase
             ['mcp:read'],
             $domainService,
             new ArrayAdapter(),
-            new LockFactory(new FlockStore())
+            new LockFactory(new FlockStore()),
+            ['mcp:read']
         );
     }
 
@@ -103,6 +104,26 @@ final class OAuthServiceTest extends TestCase
             'code' => $code,
             'code_verifier' => $verifier,
         ]);
+    }
+
+    public function testAuthorizationDefaultsToTheConfiguredLeastPrivilegeScope(): void
+    {
+        $client = $this->oauthService->registerClient([
+            'client_name' => 'MCP client without explicit scope',
+            'redirect_uris' => ['http://localhost:43125/callback'],
+        ]);
+
+        $authorization = $this->oauthService->validateAuthorizationRequest([
+            'response_type' => 'code',
+            'client_id' => $client['client_id'],
+            'redirect_uri' => $client['redirect_uris'][0],
+            'state' => 'state-default-scope',
+            'code_challenge' => str_repeat('a', 43),
+            'code_challenge_method' => 'S256',
+        ]);
+
+        self::assertSame('mcp:read', $authorization['scope']);
+        self::assertSame($this->oauthService->getIssuer() . '/mcp', $authorization['resource']);
     }
 
     public function testPublicClientCanRevokeItsOwnAccessToken(): void
