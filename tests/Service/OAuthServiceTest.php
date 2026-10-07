@@ -20,11 +20,16 @@ use Symfony\Component\HttpFoundation\Request;
 final class OAuthServiceTest extends TestCase
 {
     private OAuthService $oauthService;
+    private DomainService $domainService;
+    private string $authorizedTenant = 'tenant-a.example';
+    private string $mainDomain = 'api.controleonline.com';
 
     protected function setUp(): void
     {
         $domainService = $this->createStub(DomainService::class);
-        $domainService->method('getDomain')->willReturn('tenant-a.example');
+        $domainService->method('getDomain')->willReturnCallback(fn (): string => $this->authorizedTenant);
+        $domainService->method('getMainDomain')->willReturnCallback(fn (): string => $this->mainDomain);
+        $this->domainService = $domainService;
 
         $this->oauthService = new OAuthService(
             'unit-test-oauth-signing-secret',
@@ -163,7 +168,7 @@ final class OAuthServiceTest extends TestCase
         $request->headers->set('app-domain', 'attacker.example');
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
-        (new OAuthTenantRequestListener($this->oauthService))->onKernelRequest($event);
+        $this->listener()->onKernelRequest($event);
 
         self::assertSame('tenant-a.example', $request->headers->get('app-domain'));
         self::assertNull($event->getResponse());
@@ -171,38 +176,15 @@ final class OAuthServiceTest extends TestCase
 
     public function testMcpTenantComesFromBearerAndMissingBearerIsRejectedBeforeDatabaseSwitch(): void
     {
-        $client = $this->oauthService->registerClient([
-            'client_name' => 'Desktop MCP',
-            'redirect_uris' => ['https://client.example/callback'],
-        ]);
-        $verifier = str_repeat('c', 43);
-        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
-        $authorization = $this->oauthService->authorize($this->activeUser(9), [
-            'response_type' => 'code',
-            'client_id' => $client['client_id'],
-            'redirect_uri' => $client['redirect_uris'][0],
-            'state' => 'state-tenant-check',
-            'code_challenge' => $challenge,
-            'code_challenge_method' => 'S256',
-            'scope' => 'mcp:read',
-            'decision' => 'approve',
-        ]);
-        parse_str((string) parse_url($authorization['redirect_to'], PHP_URL_QUERY), $callback);
-        $token = $this->oauthService->exchangeAuthorizationCode([
-            'grant_type' => 'authorization_code',
-            'client_id' => $client['client_id'],
-            'redirect_uri' => $client['redirect_uris'][0],
-            'code' => $callback['code'],
-            'code_verifier' => $verifier,
-        ])['access_token'];
+        $token = $this->issueAccessToken(9);
 
-        $request = Request::create('/mcp', 'POST');
+        $request = Request::create('/mcp/tenant-a.example', 'POST');
         $request->headers->set('app-domain', 'attacker.example');
         $request->headers->set('Origin', 'https://attacker.example');
         $request->headers->set('Authorization', 'Bearer ' . $token);
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
-        (new OAuthTenantRequestListener($this->oauthService))->onKernelRequest($event);
+        $this->listener()->onKernelRequest($event);
 
         self::assertSame('tenant-a.example', $request->headers->get('app-domain'));
         self::assertSame(9, $request->attributes->get('oauth_user_id'));
@@ -212,11 +194,42 @@ final class OAuthServiceTest extends TestCase
         $requestWithoutBearer = Request::create('/mcp', 'POST');
         $requestWithoutBearer->headers->set('app-domain', 'attacker.example');
         $missingBearerEvent = new RequestEvent($this->createStub(HttpKernelInterface::class), $requestWithoutBearer, HttpKernelInterface::MAIN_REQUEST);
-        (new OAuthTenantRequestListener($this->oauthService))->onKernelRequest($missingBearerEvent);
+        $this->listener()->onKernelRequest($missingBearerEvent);
 
         self::assertSame(401, $missingBearerEvent->getResponse()?->getStatusCode());
         self::assertTrue($missingBearerEvent->isPropagationStopped());
         self::assertSame('attacker.example', $requestWithoutBearer->headers->get('app-domain'));
+    }
+
+    public function testMcpPathTenantMustMatchSignedBearerTenant(): void
+    {
+        $request = Request::create('/mcp/other.example', 'POST');
+        $request->headers->set('app-domain', 'attacker.example');
+        $request->headers->set('Authorization', 'Bearer ' . $this->issueAccessToken(9));
+        $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $this->listener()->onKernelRequest($event);
+
+        self::assertSame(403, $event->getResponse()?->getStatusCode());
+        self::assertSame(['error' => 'tenant_mismatch'], json_decode((string) $event->getResponse()?->getContent(), true));
+        self::assertSame('attacker.example', $request->headers->get('app-domain'));
+        self::assertTrue($event->isPropagationStopped());
+    }
+
+    public function testMcpWithoutPathTenantUsesMainDomainAndIgnoresOrigin(): void
+    {
+        $this->authorizedTenant = $this->mainDomain;
+        $request = Request::create('/mcp', 'POST');
+        $request->headers->set('app-domain', 'forged.example');
+        $request->headers->set('Origin', 'https://forged.example');
+        $request->headers->set('Authorization', 'Bearer ' . $this->issueAccessToken(10));
+        $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $this->listener()->onKernelRequest($event);
+
+        self::assertNull($event->getResponse());
+        self::assertSame($this->mainDomain, $request->headers->get('app-domain'));
+        self::assertSame($this->mainDomain, $request->attributes->get('app-domain'));
     }
 
     public function testMcpPreflightDoesNotRequireBearerOrSwitchTenant(): void
@@ -225,7 +238,7 @@ final class OAuthServiceTest extends TestCase
         $request->headers->set('app-domain', 'attacker.example');
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
-        (new OAuthTenantRequestListener($this->oauthService))->onKernelRequest($event);
+        $this->listener()->onKernelRequest($event);
 
         self::assertNull($event->getResponse());
         self::assertFalse($event->isPropagationStopped());
@@ -239,7 +252,7 @@ final class OAuthServiceTest extends TestCase
         $request->headers->set('Authorization', 'Bearer not-a-signed-token');
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
-        (new OAuthTenantRequestListener($this->oauthService))->onKernelRequest($event);
+        $this->listener()->onKernelRequest($event);
 
         self::assertSame(401, $event->getResponse()?->getStatusCode());
         self::assertTrue($event->isPropagationStopped());
@@ -254,5 +267,39 @@ final class OAuthServiceTest extends TestCase
         $user->setPeople(new People(0, null, 1));
 
         return $user;
+    }
+
+    private function issueAccessToken(int $userId): string
+    {
+        $client = $this->oauthService->registerClient([
+            'client_name' => 'Desktop MCP',
+            'redirect_uris' => ['https://client.example/callback'],
+        ]);
+        $verifier = str_repeat('c', 43);
+        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+        $authorization = $this->oauthService->authorize($this->activeUser($userId), [
+            'response_type' => 'code',
+            'client_id' => $client['client_id'],
+            'redirect_uri' => $client['redirect_uris'][0],
+            'state' => 'state-tenant-check',
+            'code_challenge' => $challenge,
+            'code_challenge_method' => 'S256',
+            'scope' => 'mcp:read',
+            'decision' => 'approve',
+        ]);
+        parse_str((string) parse_url($authorization['redirect_to'], PHP_URL_QUERY), $callback);
+
+        return $this->oauthService->exchangeAuthorizationCode([
+            'grant_type' => 'authorization_code',
+            'client_id' => $client['client_id'],
+            'redirect_uri' => $client['redirect_uris'][0],
+            'code' => $callback['code'],
+            'code_verifier' => $verifier,
+        ])['access_token'];
+    }
+
+    private function listener(): OAuthTenantRequestListener
+    {
+        return new OAuthTenantRequestListener($this->oauthService, $this->domainService);
     }
 }

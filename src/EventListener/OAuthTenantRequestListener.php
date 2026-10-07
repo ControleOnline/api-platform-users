@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace ControleOnline\EventListener;
 
+use ControleOnline\Service\DomainService;
 use ControleOnline\Service\OAuthService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 /**
  * Resolves signed OAuth tenant claims before multi-tenancy's priority-512
@@ -16,6 +18,7 @@ final class OAuthTenantRequestListener
 {
     public function __construct(
         private readonly OAuthService $oauthService,
+        private readonly DomainService $domainService,
     ) {
     }
 
@@ -45,7 +48,7 @@ final class OAuthTenantRequestListener
                 return;
             }
 
-            if ($path !== '/mcp') {
+            if (preg_match('#^/mcp(?:/([^/]+))?/?$#', $path, $pathMatches) !== 1) {
                 return;
             }
 
@@ -71,9 +74,24 @@ final class OAuthTenantRequestListener
                 return;
             }
 
+            $requestedTenant = isset($pathMatches[1])
+                ? rawurldecode($pathMatches[1])
+                : (string) $this->domainService->getMainDomain();
+            if (!$this->isValidTenantDomain($requestedTenant)) {
+                throw new BadRequestHttpException('Invalid MCP tenant domain.');
+            }
+
+            if (strcasecmp($requestedTenant, (string) $claims['tenant']) !== 0) {
+                $event->stopPropagation();
+                $event->setResponse(new JsonResponse(['error' => 'tenant_mismatch'], 403));
+
+                return;
+            }
+
             // A signed OAuth tenant claim outranks client-controlled app-domain,
             // Origin and Referer headers before the database switch runs.
             $request->headers->set('app-domain', (string) $claims['tenant']);
+            $request->attributes->set('app-domain', (string) $claims['tenant']);
             $request->attributes->set('oauth_user_id', (int) $claims['sub']);
             $request->attributes->set('oauth_scopes', (string) $claims['scope']);
         } catch (\InvalidArgumentException) {
@@ -85,5 +103,17 @@ final class OAuthTenantRequestListener
                 ['WWW-Authenticate' => 'Bearer error=\"invalid_token\", resource_metadata=\"' . $this->oauthService->getIssuer() . '/.well-known/oauth-protected-resource\"']
             ));
         }
+    }
+
+    private function isValidTenantDomain(string $domain): bool
+    {
+        if (preg_match('/^[a-z0-9.-]+(?::[0-9]{1,5})?$/iD', $domain) !== 1) {
+            return false;
+        }
+
+        $host = preg_replace('/:[0-9]{1,5}$/', '', $domain);
+
+        return is_string($host)
+            && filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
     }
 }
