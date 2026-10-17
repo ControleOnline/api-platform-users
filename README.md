@@ -3,7 +3,7 @@
 # users
 
 
-`composer require controleonline/users:1.0.4`
+`composer require controleonline/users:1.0.5`
 
 
 
