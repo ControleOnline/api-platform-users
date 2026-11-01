@@ -9,18 +9,23 @@ use ControleOnline\Service\PublicAppUrlResolver;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Unit tests for multi-tenant public app URL resolution used in
- * password-recovery and account-verification email links (task-323/324).
+ * Unit tests for multi-tenant public app URL resolution
+ * (password-recovery, account-verification, MCP OAuth consent).
  */
 class PublicAppUrlResolverTest extends TestCase
 {
-    private function resolverWithRequestDomain(?string $domain): PublicAppUrlResolver
+    private function resolver(?string $requestDomain, ?string $mainDomain = null): PublicAppUrlResolver
     {
         $domainService = $this->createMock(DomainService::class);
-        if ($domain === null) {
+        if ($requestDomain === null) {
             $domainService->method('getDomain')->willThrowException(new \RuntimeException('no domain'));
         } else {
-            $domainService->method('getDomain')->willReturn($domain);
+            $domainService->method('getDomain')->willReturn($requestDomain);
+        }
+        if ($mainDomain === null) {
+            $domainService->method('getMainDomain')->willReturn('');
+        } else {
+            $domainService->method('getMainDomain')->willReturn($mainDomain);
         }
 
         return new PublicAppUrlResolver($domainService);
@@ -28,81 +33,83 @@ class PublicAppUrlResolverTest extends TestCase
 
     public function testRequestDomainPresentUsesRequest(): void
     {
-        $resolver = $this->resolverWithRequestDomain('app.lave-go.com');
+        $resolver = $this->resolver('app.example-front.test', 'api.example-api.test');
         $this->assertSame(
-            'https://app.lave-go.com',
-            $resolver->resolveFrom('app.lave-go.com', 'admin.controleonline.com'),
+            'https://app.example-front.test',
+            $resolver->resolveFrom('app.example-front.test', 'https://app.example-front.test'),
         );
     }
 
     public function testRequestEmptyUsesConfiguredEnv(): void
     {
-        $resolver = $this->resolverWithRequestDomain('');
+        $resolver = $this->resolver('', 'api.example-api.test');
         $this->assertSame(
             'https://manager.example.com',
             $resolver->resolveFrom('', 'manager.example.com'),
         );
     }
 
-    public function testRequestApiHostPrefersNonApiConfiguredFrontend(): void
+    public function testRequestApiHostPrefersConfiguredFrontend(): void
     {
-        $resolver = $this->resolverWithRequestDomain('api.controleonline.com');
+        $resolver = $this->resolver('api.example-api.test', 'api.example-api.test');
         $this->assertSame(
-            'https://app.lave-go.com',
-            $resolver->resolveFrom('api.controleonline.com', 'app.lave-go.com'),
+            'https://app.example-front.test',
+            $resolver->resolveFrom('api.example-api.test', 'app.example-front.test'),
         );
     }
 
-    public function testRequestApiSubdomainPrefersConfiguredFrontend(): void
+    public function testRequestApiHostWithSchemePrefersConfiguredFrontend(): void
     {
-        $resolver = $this->resolverWithRequestDomain('api.staging.example.com');
+        $resolver = $this->resolver('api.example-api.test', 'api.example-api.test');
         $this->assertSame(
-            'https://app.example.com',
-            $resolver->resolveFrom('https://api.staging.example.com', 'https://app.example.com'),
+            'https://app.example-front.test',
+            $resolver->resolveFrom('https://api.example-api.test', 'https://app.example-front.test'),
         );
     }
 
-    public function testBothEmptyFallsBackToAdmin(): void
+    public function testBothEmptyReturnsEmpty(): void
     {
-        $resolver = $this->resolverWithRequestDomain('');
-        $this->assertSame(
-            'https://admin.controleonline.com',
-            $resolver->resolveFrom('', ''),
-        );
+        $resolver = $this->resolver('', '');
+        $this->assertSame('', $resolver->resolveFrom('', ''));
     }
 
     public function testAddsHttpsWhenMissingScheme(): void
     {
-        $resolver = $this->resolverWithRequestDomain('app.lave-go.com');
+        $resolver = $this->resolver('app.example-front.test', 'api.example-api.test');
         $this->assertSame(
-            'https://app.lave-go.com',
-            $resolver->resolveFrom('app.lave-go.com', null),
+            'https://app.example-front.test',
+            $resolver->resolveFrom('app.example-front.test', null),
         );
     }
 
     public function testPreservesExistingHttpsAndTrimsSlash(): void
     {
-        $resolver = $this->resolverWithRequestDomain('https://app.lave-go.com/');
+        $resolver = $this->resolver('https://app.example-front.test/', 'api.example-api.test');
         $this->assertSame(
-            'https://app.lave-go.com',
-            $resolver->resolveFrom('https://app.lave-go.com/', ''),
+            'https://app.example-front.test',
+            $resolver->resolveFrom('https://app.example-front.test/', ''),
         );
     }
 
-    public function testLooksLikeApiHost(): void
+    public function testLooksLikeApiHostMatchesMainDomainOnly(): void
     {
-        $resolver = $this->resolverWithRequestDomain('');
-        $this->assertTrue($resolver->looksLikeApiHost('api.controleonline.com'));
-        $this->assertTrue($resolver->looksLikeApiHost('https://api.foo.com'));
-        $this->assertFalse($resolver->looksLikeApiHost('app.lave-go.com'));
-        $this->assertFalse($resolver->looksLikeApiHost('https://admin.controleonline.com'));
+        $resolver = $this->resolver('', 'api.example-api.test');
+        $this->assertTrue($resolver->looksLikeApiHost('api.example-api.test'));
+        $this->assertTrue($resolver->looksLikeApiHost('https://api.example-api.test'));
+        $this->assertFalse($resolver->looksLikeApiHost('app.example-front.test'));
+        $this->assertFalse($resolver->looksLikeApiHost('https://other.example.test'));
+    }
+
+    public function testLooksLikeApiHostFalseWhenMainDomainEmpty(): void
+    {
+        $resolver = $this->resolver('', '');
+        $this->assertFalse($resolver->looksLikeApiHost('api.example-api.test'));
     }
 
     public function testResolveUsesDomainService(): void
     {
-        $resolver = $this->resolverWithRequestDomain('app.lave-go.com');
-        // ENV may be empty in test process → request domain wins
+        $resolver = $this->resolver('app.example-front.test', 'api.example-api.test');
         $url = $resolver->resolve();
-        $this->assertSame('https://app.lave-go.com', $url);
+        $this->assertSame('https://app.example-front.test', $url);
     }
 }
