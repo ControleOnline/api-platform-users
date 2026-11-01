@@ -4,10 +4,13 @@ namespace ControleOnline\Service;
 
 /**
  * Resolves the public frontend base URL used in multi-tenant email links
- * (password recovery, account verification).
+ * (password recovery, account verification) and MCP OAuth consent redirects.
  *
  * Prefer the tenant request domain over global ENV so white-label apps
- * (e.g. app.lave-go.com) receive correct links instead of the API host.
+ * receive correct links instead of the API host.
+ *
+ * API host detection uses DomainService::getMainDomain() only — no hardcoded
+ * domain names and no guessing among multiple env keys.
  */
 class PublicAppUrlResolver
 {
@@ -16,7 +19,7 @@ class PublicAppUrlResolver
     ) {}
 
     /**
-     * Resolve frontend base URL for email links.
+     * Resolve frontend base URL for email links / consent.
      */
     public function resolve(): string
     {
@@ -34,10 +37,10 @@ class PublicAppUrlResolver
     }
 
     /**
-     * Pure resolution logic (testable without DomainService / ENV).
+     * Pure resolution logic (testable with DomainService mock).
      *
      * @param string|null $requestDomain   Domain from current request (app-domain / Origin / Referer)
-     * @param string|null $configuredDomain Fallback from ENV (PUBLIC_APP_DOMAIN / APP_DOMAIN / …)
+     * @param string|null $configuredDomain Fallback from ENV (front / manager app)
      */
     public function resolveFrom(?string $requestDomain, ?string $configuredDomain = null): string
     {
@@ -49,13 +52,17 @@ class PublicAppUrlResolver
             ? $requestDomain
             : $configuredDomain;
 
-        // If request resolved to an API host, prefer a non-API configured frontend.
+        // If request resolved to the API host, prefer the configured frontend.
         if ($this->looksLikeApiHost($domain) && $configuredDomain !== '' && !$this->looksLikeApiHost($configuredDomain)) {
             $domain = $configuredDomain;
         }
 
         if ($domain === '') {
-            $domain = 'admin.controleonline.com';
+            $domain = $configuredDomain !== '' ? $configuredDomain : '';
+        }
+
+        if ($domain === '') {
+            return '';
         }
 
         if (!preg_match('#^https?://#i', $domain)) {
@@ -65,14 +72,31 @@ class PublicAppUrlResolver
         return rtrim($domain, '/');
     }
 
+    /**
+     * True when $domain is the API host resolved by DomainService (main domain).
+     */
     public function looksLikeApiHost(string $domain): bool
     {
-        $host = preg_replace('#^https?://#i', '', $domain) ?? $domain;
-        $host = strtolower((string) explode('/', $host)[0]);
-        $host = explode(':', $host)[0];
+        $host = $this->normalizeHost($domain);
+        if ($host === '') {
+            return false;
+        }
 
-        return $host === 'api.controleonline.com'
-            || str_starts_with($host, 'api.');
+        try {
+            $mainHost = $this->normalizeHost((string) $this->domainService->getMainDomain());
+
+            return $mainHost !== '' && $host === $mainHost;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function normalizeHost(string $domain): string
+    {
+        $host = preg_replace('#^https?://#i', '', trim($domain)) ?? '';
+        $host = strtolower((string) explode('/', $host)[0]);
+
+        return explode(':', $host)[0];
     }
 
     private function readConfiguredDomain(): string
