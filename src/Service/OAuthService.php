@@ -311,6 +311,19 @@ final class OAuthService
 
     public function getIssuer(): string
     {
+        // API host from DomainService (request / main domain); configured issuer is fallback only.
+        try {
+            $main = trim((string) $this->domainService->getMainDomain());
+            if ($main !== '') {
+                $main = preg_replace('#^https?://#i', '', $main) ?? $main;
+                $main = rtrim($main, '/');
+                if ($main !== '') {
+                    return preg_match('#^https?://#i', $main) === 1 ? $main : 'https://' . $main;
+                }
+            }
+        } catch (\Throwable) {
+        }
+
         return $this->issuer;
     }
 
@@ -322,7 +335,7 @@ final class OAuthService
         }
 
         $resourceParts = parse_url(trim($resource));
-        $issuerParts = parse_url($this->issuer);
+        $issuerParts = parse_url($this->getIssuer());
         if (!is_array($resourceParts)
             || !is_array($issuerParts)
             || strtolower((string) ($resourceParts['scheme'] ?? '')) !== strtolower((string) ($issuerParts['scheme'] ?? ''))
@@ -348,12 +361,12 @@ final class OAuthService
     public function protectedResourceIdentifier(?string $tenantDomain = null): string
     {
         if ($tenantDomain === null || trim($tenantDomain) === '') {
-            return $this->issuer . '/mcp';
+            return $this->getIssuer() . '/mcp';
         }
 
         $tenantDomain = $this->normalizeTenantDomain(rawurldecode($tenantDomain));
 
-        return $this->issuer . '/mcp/' . rawurlencode($tenantDomain);
+        return $this->getIssuer() . '/mcp/' . rawurlencode($tenantDomain);
     }
 
     /**
