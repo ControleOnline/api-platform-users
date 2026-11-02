@@ -80,7 +80,12 @@ final class OAuthTenantRequestListener
             return;
         }
 
-        if (preg_match('#^/mcp(?:/([^/]+))?/?$#', $path) !== 1) {
+        // JSON-RPC MCP only: /mcp or /mcp/{tenant.domain} — never /mcp/chat (api-token UI chat)
+        if (preg_match('#^/mcp/?$#', $path) === 1) {
+            // root MCP endpoint
+        } elseif (preg_match('#^/mcp/((?=.*\.)[^/]+)/?$#', $path) === 1) {
+            // tenant-scoped MCP JSON-RPC
+        } else {
             return;
         }
 
