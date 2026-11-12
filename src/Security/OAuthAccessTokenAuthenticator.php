@@ -31,7 +31,11 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator
 
     public function supports(Request $request): ?bool
     {
-        return preg_match('#^/mcp(?:/[^/]+)?/?$#', $request->getPathInfo()) === 1
+        $path = $request->getPathInfo();
+        $isMcpJsonRpc = preg_match('#^/mcp/?$#', $path) === 1
+            || preg_match('#^/mcp/((?=.*\.)[^/]+)/?$#', $path) === 1;
+
+        return $isMcpJsonRpc
             && preg_match('/^Bearer\\s+\\S+/i', trim((string) $request->headers->get('Authorization', ''))) === 1;
     }
 
