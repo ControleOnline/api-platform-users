@@ -140,6 +140,7 @@ class UserService
             : [];
         $user->setResolvedRoles($resolvedRoles);
 
+        $timezone = $user->getTimezone();
         $email = '';
         $code = '';
         $number = '';
@@ -177,6 +178,11 @@ class UserService
                 ? $user->getPasswordChangeDeadline()->format(\DateTimeInterface::ATOM)
                 : null,
             'password_change_expired' => $user->hasExpiredPasswordChangeDeadline(),
+            'timezone_id' => $timezone?->getId(),
+            'timezone' => $timezone ? [
+                'id' => $timezone->getId(),
+                'name' => $timezone->getName(),
+            ] : null,
         ];
     }
 
